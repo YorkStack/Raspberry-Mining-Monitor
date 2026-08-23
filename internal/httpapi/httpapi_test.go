@@ -292,3 +292,37 @@ func TestStreamPushesAnUpdateWhenTheStoreChanges(t *testing.T) {
 		t.Errorf("pushed line = %q, want an event line", strings.TrimSpace(line))
 	}
 }
+
+func TestVersionEndpointIsPublicAndReportsTheBuildVersion(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/version", nil)
+	// A public LAN client, not loopback: the version must be readable by anyone
+	// who can see the dashboard, unlike the operator surfaces.
+	req.RemoteAddr = "203.0.113.7:40000"
+	testHandler(testStore()).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+		t.Errorf("Content-Type = %q, want application/json", ct)
+	}
+	var v struct {
+		Version string `json:"version"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &v); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if v.Version != "test" {
+		t.Errorf("Version = %q, want test", v.Version)
+	}
+}
+
+func TestVersionEndpointRejectsNonGet(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/version", nil)
+	testHandler(testStore()).ServeHTTP(rec, req)
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Errorf("status = %d, want 405", rec.Code)
+	}
+}

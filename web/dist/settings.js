@@ -17,8 +17,33 @@ let state = { default: {}, miners: [], overrides: {} };
 function message(text, kind) {
   const n = el("cfg-msg");
   n.textContent = text;
+  // Clear then force a reflow so the pop animation replays even when the same
+  // kind of message fires twice in a row.
+  n.className = "cfg-msg";
+  void n.offsetWidth;
   n.className = "cfg-msg" + (kind ? " is-" + kind : "");
-  if (kind === "ok") setTimeout(() => { if (n.textContent === text) n.textContent = ""; }, 4000);
+  if (kind === "ok") {
+    setTimeout(() => {
+      if (n.textContent === text) { n.textContent = ""; n.className = "cfg-msg"; }
+    }, 4000);
+  }
+}
+
+// Flash a persistent SAVE button green with a "SAVED" label for direct
+// feedback at the point of the click. Buttons that get re-rendered after a
+// save (the per-miner threshold cards) rely on the toast message instead.
+const FLASH_MS = 2500;
+
+function flashSaved(btn) {
+  if (!btn) return;
+  if (btn.dataset.label === undefined) btn.dataset.label = btn.textContent;
+  btn.classList.add("is-saved");
+  btn.textContent = "SAVED \u2713";
+  clearTimeout(btn._savedTimer);
+  btn._savedTimer = setTimeout(() => {
+    btn.classList.remove("is-saved");
+    btn.textContent = btn.dataset.label;
+  }, FLASH_MS);
 }
 
 function cardMarkup(name, values, overridden) {
@@ -125,17 +150,25 @@ document.addEventListener("click", async (e) => {
   if (!save && !reset) return;
 
   const encodedName = (save || reset).dataset.miner;
+  // The MINERS/PROVIDERS/SCREENSAVER buttons also carry .cfg-save but have no
+  // data-miner and their own handlers below. Only per-miner threshold cards get
+  // here; bail out for the rest so we don't throw on a missing card.
+  if (!encodedName) return;
   try {
     if (save) {
       const body = readCard(encodedName);
       if (!body) { message("Every field needs a number.", "bad"); return; }
       state = await apply("PUT", encodedName, body);
       message("Saved. The dashboard picks it up on the next frame.", "ok");
+      flashSaved(save);
+      // Defer the re-render so the green SAVED flash is visible; render()
+      // rebuilds the card and would otherwise replace the button instantly.
+      setTimeout(render, FLASH_MS);
     } else {
       state = await apply("DELETE", encodedName, null);
       message("Reset to the fleet default.", "ok");
+      render();
     }
-    render();
   } catch (err) {
     message(String(err.message || err), "bad");
   }
@@ -215,6 +248,7 @@ document.addEventListener("click", async (e) => {
     return;
   }
   if (e.target.closest("#miner-save")) {
+    const btn = e.target.closest("#miner-save");
     try {
       const res = await fetch("/api/v1/miners", {
         method: "PUT",
@@ -228,12 +262,14 @@ document.addEventListener("click", async (e) => {
       // Reload the whole settings view so monitoring/threshold sections match.
       await loadSettings();
       message("Miners saved and applied.", "ok");
+      flashSaved(btn);
     } catch (err) {
       message(String(err.message || err), "bad");
     }
     return;
   }
   if (e.target.closest("#prov-save")) {
+    const btn = e.target.closest("#prov-save");
     try {
       const res = await fetch("/api/v1/providers", {
         method: "PUT",
@@ -248,6 +284,7 @@ document.addEventListener("click", async (e) => {
       minersState = JSON.parse(text);
       renderMiners();
       message("Providers saved and applied.", "ok");
+      flashSaved(btn);
     } catch (err) {
       message(String(err.message || err), "bad");
     }
@@ -326,7 +363,8 @@ document.addEventListener("change", async (e) => {
 });
 
 document.addEventListener("click", async (e) => {
-  if (!e.target.closest("#sv-save")) return;
+  const svBtn = e.target.closest("#sv-save");
+  if (!svBtn) return;
   try {
     const res = await fetch("/api/v1/settings/screensaver", {
       method: "PUT",
@@ -338,7 +376,18 @@ document.addEventListener("click", async (e) => {
     state = JSON.parse(text);
     renderScreensaver();
     message("Screensaver saved.", "ok");
+    flashSaved(svBtn);
   } catch (err) {
     message(String(err.message || err), "bad");
   }
 });
+
+
+/* ---- build version in the footer ---- */
+fetch("/api/v1/version")
+  .then((r) => r.json())
+  .then((v) => {
+    const node = document.getElementById("app-ver");
+    if (node && v && v.version) node.textContent = "v" + v.version;
+  })
+  .catch(() => {});

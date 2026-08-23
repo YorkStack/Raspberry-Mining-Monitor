@@ -1,0 +1,38 @@
+{
+  "system": { "uptime": 43215, "shutdown": false, "boardError": 0, "overheatTemp": 70 },
+  "performance": {
+    "hashRateTimestamp": 1787468000,
+    "hashRate": 12105.6,
+    "hashRate1m": 12040.2,
+    "hashRate10m": 12088.1,
+    "hashRate1h": 12099.9,
+    "hashRate1d": 12070.0,
+    "bestDiff": 124300000000,
+    "bestSessionDiff": 74000000000,
+    "sharesAccepted": 5821,
+    "sharesRejected": 3,
+    "frequency": 625,
+    "asicCount": 6,
+    "smallCoreCount": 894
+  },
+  "power": {
+    "watts": 158.4,
+    "min": 0, "max": 220,
+    "voltage": 5.02, "voltageMin": 4.8, "voltageMax": 5.5,
+    "currentA": 31.6, "currentAMin": 0, "currentAMax": 45,
+    "coreVoltageActual": 1.19
+  },
+  "thermal": {
+    "asicTemp": 62.4,
+    "vrTemp": 70.1,
+    "vrTempInt": 68.0,
+    "asicTemps": [61.2, 62.4, 60.9, 61.8, 62.0, 61.5],
+    "fans": [ { "speed": 63, "rpm": 4806 }, { "speed": 62, "rpm": 4741 } ]
+  },
+  "stratum": {
+    "pools": [
+      { "host": "public-pool.io", "port": 3333, "user": "bc1qnerdnerdnerdnerdnerdnerdnerdnerdnerd42.nerd", "isUsingFallback": false }
+    ]
+  },
+  "can": { "hasExtension": false, "enabled": false }
+}

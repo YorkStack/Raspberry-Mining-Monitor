@@ -1,0 +1,44 @@
+# Raspberry Mining Monitor backend.
+#
+# Install to /etc/systemd/system/rmm.service, then:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now rmm
+#
+# Read-only monitoring service. It never writes to a miner, so it needs no
+# special privileges and runs fully sandboxed.
+
+[Unit]
+Description=Raspberry Mining Monitor
+Documentation=https://github.com/YorkStack/Raspberry-Mining-Monitor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/rmm/rmm --config /etc/rmm/config.yaml
+Restart=on-failure
+RestartSec=5
+
+# Hold the Go heap to a hard ceiling on the 1 GB Pi.
+Environment=GOMEMLIMIT=96MiB
+Environment=GOGC=50
+
+# Sandbox. DynamicUser gives the service its own transient account and a
+# private /var/lib/rmm via StateDirectory.
+DynamicUser=yes
+StateDirectory=rmm
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+MemoryMax=128M
+
+[Install]
+WantedBy=multi-user.target

@@ -148,3 +148,87 @@ if (initialMiner) miner = initialMiner;
 
 load();
 setInterval(load, 30000);
+
+
+/* ---- Solo Block Odds detail + What-if (maths stay in Go) ---- */
+
+function years(y) {
+  if (y == null || !Number.isFinite(y)) return "—";
+  return y < 1 ? Math.round(y * 365.25) + " d" : Math.round(y).toLocaleString("de-DE") + " y";
+}
+function percent(p) {
+  if (p == null || !Number.isFinite(p)) return "—";
+  const pct = p * 100;
+  if (pct === 0) return "0 %";
+  if (pct < 1) return pct.toPrecision(3) + " %";
+  return pct.toFixed(2) + " %";
+}
+function oddsStr(n) {
+  if (n == null || !Number.isFinite(n) || n <= 0) return "—";
+  let body;
+  if (n >= 1e9) body = (n / 1e9).toFixed(n < 1e10 ? 1 : 0) + "B";
+  else if (n >= 1e6) body = (n / 1e6).toFixed(n < 1e7 ? 1 : 0) + "M";
+  else if (n >= 1e3) body = (n / 1e3).toFixed(n < 1e4 ? 1 : 0) + "k";
+  else body = String(Math.round(n));
+  return "1 : " + body;
+}
+function hs(v) {
+  if (!v || !Number.isFinite(v)) return "—";
+  const u = [[1e18, "EH/s"], [1e15, "PH/s"], [1e12, "TH/s"], [1e9, "GH/s"]];
+  for (const [s, l] of u) if (v >= s) return (v / s).toFixed(2) + " " + l;
+  return v.toFixed(0) + " H/s";
+}
+function siNum(v) {
+  if (!v || !Number.isFinite(v)) return "—";
+  const u = [[1e12, "T"], [1e9, "G"], [1e6, "M"], [1e3, "k"]];
+  for (const [s, l] of u) if (Math.abs(v) >= s) return (v / s).toFixed(2) + " " + l;
+  return v.toFixed(0);
+}
+function tsStr(s) {
+  if (!s) return "—";
+  const t = new Date(s);
+  if (isNaN(t) || t.getFullYear() < 2000) return "—";
+  return t.toLocaleString("de-DE");
+}
+
+const ODDS_WINDOWS = [["Next block", "nextBlock"], ["Today", "day"], ["7 Days", "week"], ["30 Days", "month"], ["1 Year", "year"]];
+
+function renderOdds(d) {
+  el("odds-grid").innerHTML = ODDS_WINDOWS.map(([label, key]) => {
+    const w = d[key] || {};
+    return `<div class="odds-cell"><span class="ol">${label}</span><b class="ov">${oddsStr(w.oddsAgainst)}</b><span class="op">${percent(w.probability)}</span></div>`;
+  }).join("");
+  el("od-interval").textContent = d.meanYears ? "~" + years(d.meanYears) : "—";
+  el("od-combined").textContent = d.combinedHashrateThs ? fmt(d.combinedHashrateThs, 2) + " TH/s" : "—";
+  el("od-nethash").textContent = hs(d.networkHashrateHs);
+  el("od-diff").textContent = siNum(d.difficulty);
+  el("od-asof").textContent = tsStr(d.asOf);
+}
+
+async function loadOdds() {
+  try {
+    renderOdds(await fetch("/api/v1/probability").then((r) => r.json()));
+  } catch (err) {
+    /* leave the em-dashes in place */
+  }
+}
+
+async function whatif() {
+  const v = parseFloat(el("wi-ths").value);
+  if (!Number.isFinite(v) || v <= 0) {
+    el("wi-out").textContent = "Enter a hashrate to see the odds.";
+    return;
+  }
+  try {
+    const d = await fetch("/api/v1/probability?ths=" + encodeURIComponent(v)).then((r) => r.json());
+    el("wi-out").innerHTML =
+      `<b>${fmt(v, 2)} TH/s</b> &rarr; 1 Year <b>${oddsStr(d.year.oddsAgainst)}</b> (${percent(d.year.probability)}) ` +
+      `&middot; 30 Days ${oddsStr(d.month.oddsAgainst)} &middot; interval ~${years(d.meanYears)}`;
+  } catch (err) {
+    el("wi-out").textContent = "—";
+  }
+}
+
+el("wi-ths").addEventListener("input", whatif);
+loadOdds();
+setInterval(loadOdds, 30000);

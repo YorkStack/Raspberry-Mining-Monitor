@@ -17,7 +17,7 @@ import (
 // package free of the concrete adapter imports and makes the manager testable.
 type Factories struct {
 	Miner   func(minercfg.Spec) miner.Collector
-	Pool    func(miners []minercfg.Spec, p minercfg.Providers) pool.Adapter // nil if no pool
+	Pool    func(miners []minercfg.Spec, p minercfg.Providers) pool.Fetcher // nil if no pool
 	Bitcoin func(p minercfg.Providers) bitcoin.Provider                     // nil if none
 }
 
@@ -105,11 +105,11 @@ func (m *Manager) Reload(specs []minercfg.Spec, providers minercfg.Providers) {
 	}
 
 	if m.factories.Pool != nil {
-		if a := m.factories.Pool(specs, providers); a != nil {
+		if f := m.factories.Pool(specs, providers); f != nil {
 			m.wg.Add(1)
 			go func() {
 				defer m.wg.Done()
-				RunPool(ctx, a, m.store, m.poolInterval, m.poolTimeout, m.log)
+				RunPool(ctx, f, m.store, m.poolInterval, m.poolTimeout, m.log)
 			}()
 		}
 	}

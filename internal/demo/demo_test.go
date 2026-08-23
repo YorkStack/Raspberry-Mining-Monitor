@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/pool"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/bitcoin"
 )
 
@@ -238,14 +239,14 @@ func TestPoolAdapterReportsPublicPoolCapabilities(t *testing.T) {
 	p := NewPool([]string{"NerdOctaxe", "Gamma 602"}, 10, clock(&now))
 
 	caps := p.Capabilities()
-	if caps.RejectedShares {
-		t.Error("RejectedShares = true; Public Pool cannot report them, so demo must not either")
+	if caps.Has(pool.FieldRejectedShares) {
+		t.Error("rejected_shares supported; Public Pool cannot report them, so demo must not either")
 	}
-	if caps.PoolDifficulty {
-		t.Error("PoolDifficulty = true; Public Pool does not expose it")
+	if caps.Has(pool.FieldPoolDifficulty) {
+		t.Error("pool_difficulty supported; Public Pool does not expose it")
 	}
 
-	s, err := p.Fetch(context.Background())
+	s, err := p.Fetch(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("fetch: %v", err)
 	}
@@ -264,7 +265,7 @@ func TestPoolBestDifficultyNeverDecreases(t *testing.T) {
 	var prev float64
 	for i := 0; i < 500; i++ {
 		now = now.Add(time.Minute)
-		s, err := p.Fetch(context.Background())
+		s, err := p.Fetch(context.Background(), nil)
 		if err != nil {
 			continue
 		}

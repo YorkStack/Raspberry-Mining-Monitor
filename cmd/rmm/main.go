@@ -35,6 +35,8 @@ import (
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/miner/axeos"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/minercfg"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/pool"
+	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/pool/braiins"
+	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/pool/ckpool"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/pool/publicpool"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/settings"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/state"
@@ -44,7 +46,7 @@ import (
 // version is the semantic version of the build. It can be overridden at build
 // time with -ldflags "-X main.version=...". Bump it on every change: the patch
 // digit for small fixes, the minor digit for features or notable changes.
-var version = "0.8.2"
+var version = "0.9.0"
 
 // gitRev is embedded at build time with -ldflags "-X main.gitRev=...". It is for
 // log traceability only and is not shown in the UI.
@@ -295,6 +297,42 @@ func recordHistory(ctx context.Context, hist *history.Store, store *state.Store,
 
 // seedSpecs converts the loaded config's miners into editable specs for the
 // first-run seed of the miner config store.
+// buildRouter wires the provider-agnostic pool router: publicpool, ckpool and
+// the generic telemetry fallback always, plus braiins when a token is set. Each
+// miner is routed by its explicit override, the global default, or (when the
+// default is "auto") detection from its stratum host.
+func buildRouter(cfg config.Config, specs []minercfg.Spec, prov minercfg.Providers) pool.Fetcher {
+	defaultOverride := cfg.Pool.Provider
+	if defaultOverride == "auto" {
+		defaultOverride = ""
+	}
+	routerMiners := make([]pool.RouterMiner, 0, len(specs))
+	for _, m := range specs {
+		ov := m.PoolProvider
+		if ov == "" {
+			ov = defaultOverride
+		}
+		routerMiners = append(routerMiners, pool.RouterMiner{
+			Name:     m.Name,
+			Address:  m.PayoutAddress,
+			Override: ov,
+		})
+	}
+	if len(routerMiners) == 0 {
+		return nil
+	}
+
+	providers := map[string]pool.Provider{
+		pool.KeyPublicPool: publicpool.New(publicpool.Config{BaseURL: prov.PoolBaseURL, Timeout: cfg.Pool.Timeout}),
+		pool.KeyCKPool:     ckpool.New(ckpool.Config{Timeout: cfg.Pool.Timeout}),
+		pool.KeyGeneric:    pool.NewGeneric(),
+	}
+	if cfg.Pool.Token != "" {
+		providers[pool.KeyBraiins] = braiins.New(braiins.Config{Token: cfg.Pool.Token, Timeout: cfg.Pool.Timeout})
+	}
+	return pool.NewRouter(routerMiners, providers)
+}
+
 func seedSpecs(cfg config.Config) []minercfg.Spec {
 	out := make([]minercfg.Spec, 0, len(cfg.Miners))
 	for _, m := range cfg.Miners {
@@ -303,6 +341,7 @@ func seedSpecs(cfg config.Config) []minercfg.Spec {
 			Type:          m.Type,
 			Host:          m.Host,
 			PayoutAddress: m.PayoutAddress,
+			PoolProvider:  m.PoolProvider,
 			Interval:      m.Interval,
 			Timeout:       m.Timeout,
 			NominalTHs:    m.NominalTHs,
@@ -349,32 +388,18 @@ func factories(cfg config.Config, clock func() time.Time) collect.Factories {
 				})
 			}
 		},
-		Pool: func(specs []minercfg.Spec, prov minercfg.Providers) pool.Adapter {
+		Pool: func(specs []minercfg.Spec, prov minercfg.Providers) pool.Fetcher {
 			switch cfg.Pool.Provider {
+			case "none":
+				return nil
 			case "demo":
 				names := make([]string, len(specs))
 				for i, m := range specs {
 					names[i] = m.Name
 				}
 				return demo.NewPool(names, 42, clock)
-			case "publicpool":
-				targets := make([]publicpool.Target, 0, len(specs))
-				for _, m := range specs {
-					if m.PayoutAddress != "" {
-						targets = append(targets, publicpool.Target{MinerName: m.Name, Address: m.PayoutAddress})
-					}
-				}
-				if len(targets) == 0 {
-					return nil
-				}
-				return publicpool.New(publicpool.Config{
-					BaseURL: prov.PoolBaseURL,
-					Timeout: cfg.Pool.Timeout,
-					Targets: targets,
-				})
-			default:
-				return nil
 			}
+			return buildRouter(cfg, specs, prov)
 		},
 		Bitcoin: func(prov minercfg.Providers) bitcoin.Provider {
 			switch cfg.Bitcoin.Provider {

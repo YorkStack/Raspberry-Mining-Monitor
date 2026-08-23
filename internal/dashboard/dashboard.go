@@ -7,6 +7,7 @@
 package dashboard
 
 import (
+	"sort"
 	"time"
 
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/aggregate"
@@ -158,6 +159,16 @@ type PoolView struct {
 	// LastShareInferred marks a connection state derived from share age rather
 	// than reported by the pool.
 	LastShareInferred bool `json:"lastShareInferred"`
+
+	// Caps is the sorted list of metric fields the active provider(s) supply,
+	// so the UI can hide what is genuinely unavailable instead of showing a
+	// zero. Fields not listed here are unavailable, not zero.
+	Caps []string `json:"caps"`
+
+	// Optional provider-supplied figures, present only when the caps allow.
+	ActiveWorkers  *int     `json:"activeWorkers,omitempty"`
+	PoolDifficulty *float64 `json:"poolDifficulty,omitempty"`
+	PoolSideHashrateTHs *float64 `json:"poolSideHashrateThs,omitempty"`
 }
 
 // NetworkView is the Bitcoin panel.
@@ -324,8 +335,12 @@ func Build(in Input, now time.Time) View {
 		BestEver:           in.Pool.BestEver,
 		SharesAccepted:     accepted,
 		SharesRejected:     rejected,
-		RejectedFromMiners: !in.Pool.Caps.RejectedShares,
-		LastShareInferred:  !in.Pool.Caps.ConnectionStatus,
+		RejectedFromMiners: !in.Pool.Caps.Has(pool.FieldRejectedShares),
+		LastShareInferred:  !in.Pool.Caps.Has(pool.FieldLastShare),
+		Caps:               capsList(in.Pool.Caps),
+		ActiveWorkers:      in.Pool.ActiveWorkers,
+		PoolDifficulty:     in.Pool.PoolDifficulty,
+		PoolSideHashrateTHs: in.Pool.HashrateTHs,
 	}
 	if in.Pool.LastShare != nil {
 		s := now.Sub(*in.Pool.LastShare).Seconds()
@@ -376,4 +391,17 @@ func Build(in Input, now time.Time) View {
 	}
 
 	return v
+}
+
+// capsList turns a capability set into a sorted list of field names, so the
+// browser can hide the metrics a provider does not supply.
+func capsList(c pool.Capabilities) []string {
+	out := make([]string, 0, len(c))
+	for f, ok := range c {
+		if ok {
+			out = append(out, string(f))
+		}
+	}
+	sort.Strings(out)
+	return out
 }

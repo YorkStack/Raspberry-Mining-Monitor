@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/aggregate"
+	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/alert"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/bitcoin"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/bitcoin/mempool"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/collect"
@@ -46,7 +47,7 @@ import (
 // version is the semantic version of the build. It can be overridden at build
 // time with -ldflags "-X main.version=...". Bump it on every change: the patch
 // digit for small fixes, the minor digit for features or notable changes.
-var version = "0.12.0"
+var version = "0.13.0"
 
 // gitRev is embedded at build time with -ldflags "-X main.gitRev=...". It is for
 // log traceability only and is not shown in the UI.
@@ -133,6 +134,9 @@ func run() error {
 	}
 	bands.SetScreensaverDefault(settings.Screensaver{Mode: saverMode, Minutes: cfg.Dashboard.ScreensaverMinutes})
 
+	// Opt-in operator alerts (miner offline / over-temperature) to a webhook.
+	go runAlerts(ctx, cfg.Alerts, store, bands, log)
+
 	handler := httpapi.NewHandler(httpapi.Options{
 		Store:              store,
 		Intervals:          intervals(cfg),
@@ -140,6 +144,7 @@ func run() error {
 		Version:            version,
 		Settings:           bands,
 		SettingsEnabled:    cfg.Dashboard.Settings,
+		MetricsEnabled:     cfg.Dashboard.Metrics,
 		ScreensaverSeconds: cfg.Dashboard.ScreensaverMinutes * 60,
 		MinerCfg:           minerStore,
 		OnConfigChange: func() {
@@ -260,6 +265,53 @@ func intervals(cfg config.Config) dashboard.Input {
 // history, and persists the rings every 5 minutes plus once on shutdown. It
 // only records while at least one miner is online, so downtime does not draw a
 // misleading flat line at zero.
+// runAlerts evaluates alert conditions against the live fleet once a minute and
+// delivers any alerts to the configured webhook. It returns immediately when no
+// webhook is configured, so alerts are strictly opt-in.
+func runAlerts(ctx context.Context, cfg config.Alerts, store *state.Store, bands *settings.Store, log *slog.Logger) {
+	if cfg.WebhookURL == "" {
+		return
+	}
+	engine := alert.New(alert.Config{
+		OfflineAfter: time.Duration(cfg.OfflineMinutes) * time.Minute,
+		TempAlerts:   cfg.TempAlerts,
+		Cooldown:     time.Duration(cfg.CooldownMinutes) * time.Minute,
+	})
+	notifier := alert.NewWebhook(cfg.WebhookURL, 8*time.Second)
+	log.Info("operator alerts enabled", "offlineMinutes", cfg.OfflineMinutes, "tempAlerts", cfg.TempAlerts)
+
+	tick := time.NewTicker(time.Minute)
+	defer tick.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case now := <-tick.C:
+			def := bands.Default()
+			ov := bands.Overrides()
+			statuses := make([]alert.MinerStatus, 0)
+			for _, m := range store.Miners() {
+				crit := def.ASICCritC
+				if t, ok := ov[m.Name]; ok {
+					crit = t.ASICCritC
+				}
+				st := alert.MinerStatus{Name: m.Name, Online: m.OK, ASICTempC: m.ASICTempC, CritTempC: crit}
+				if !m.OK {
+					st.OfflineFor = now.Sub(m.FetchedAt)
+				}
+				statuses = append(statuses, st)
+			}
+			for _, a := range engine.Evaluate(now, statuses) {
+				sendCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+				if err := notifier.Notify(sendCtx, a); err != nil {
+					log.Warn("alert delivery failed", "miner", a.Miner, "kind", a.Kind, "err", err)
+				}
+				cancel()
+			}
+		}
+	}
+}
+
 // ptrOr returns the pointed-to value, or 0 when the pointer is nil. A miner
 // that does not report power or temperature records 0 for that series.
 func ptrOr(p *float64) float64 {

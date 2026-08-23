@@ -117,6 +117,10 @@ type Dashboard struct {
 	// SettingsPath is where threshold overrides are persisted.
 	SettingsPath string `yaml:"settings_path"`
 
+	// Metrics exposes GET /metrics in Prometheus format, gated to the local
+	// network. Defaults to true.
+	Metrics bool `yaml:"metrics"`
+
 	// ScreensaverMinutes is the idle time before the burn-in screensaver
 	// appears on the kiosk. 0 disables it.
 	ScreensaverMinutes int `yaml:"screensaver_minutes"`
@@ -137,6 +141,7 @@ func (d *Dashboard) UnmarshalYAML(n *yaml.Node) error {
 		Port               *int   `yaml:"port"`
 		AdminBind          string `yaml:"admin_bind"`
 		Settings           *bool  `yaml:"settings"`
+		Metrics            *bool  `yaml:"metrics"`
 		SettingsPath       string `yaml:"settings_path"`
 		ScreensaverMinutes *int   `yaml:"screensaver_minutes"`
 	}
@@ -148,6 +153,7 @@ func (d *Dashboard) UnmarshalYAML(n *yaml.Node) error {
 	d.SettingsPath = raw.SettingsPath
 	d.Settings = raw.Settings == nil || *raw.Settings
 	d.settingsSet = true
+	d.Metrics = raw.Metrics == nil || *raw.Metrics
 	if raw.ScreensaverMinutes != nil {
 		d.ScreensaverMinutes = *raw.ScreensaverMinutes
 		d.screensaverSet = true
@@ -157,6 +163,16 @@ func (d *Dashboard) UnmarshalYAML(n *yaml.Node) error {
 		d.portSet = true
 	}
 	return nil
+}
+
+// Alerts configures opt-in operator notifications. Everything is off unless a
+// webhook URL is set. The URL is a secret held in this file only; it is never
+// exposed through the API or the UI.
+type Alerts struct {
+	WebhookURL      string `yaml:"webhook_url"`
+	OfflineMinutes  int    `yaml:"offline_minutes"`
+	TempAlerts      bool   `yaml:"temp_alerts"`
+	CooldownMinutes int    `yaml:"cooldown_minutes"`
 }
 
 // History configures the local sample store.
@@ -172,6 +188,7 @@ type Config struct {
 	Bitcoin   Bitcoin   `yaml:"bitcoin"`
 	Pool      Pool      `yaml:"pool"`
 	Dashboard Dashboard `yaml:"dashboard"`
+	Alerts    Alerts    `yaml:"alerts"`
 	History   History   `yaml:"history"`
 
 	// Demo is set by the --demo flag, never by the file.
@@ -218,6 +235,9 @@ func (c *Config) applyDefaults() {
 	}
 	if !c.Dashboard.settingsSet {
 		c.Dashboard.Settings = true
+		// settingsSet is false only when the dashboard section was omitted
+		// entirely, in which case metrics default on too.
+		c.Dashboard.Metrics = true
 	}
 	if c.Dashboard.SettingsPath == "" {
 		c.Dashboard.SettingsPath = DefaultSettingsPath
@@ -254,6 +274,18 @@ func (c *Config) applyDefaults() {
 
 	if c.History.RetentionDays == 0 {
 		c.History.RetentionDays = 7
+	}
+
+	// Alerts are opt-in: nothing runs without a webhook URL. When one is set but
+	// no conditions were chosen, enable sensible defaults so it is useful at once.
+	if c.Alerts.WebhookURL != "" {
+		if c.Alerts.OfflineMinutes == 0 && !c.Alerts.TempAlerts {
+			c.Alerts.OfflineMinutes = 10
+			c.Alerts.TempAlerts = true
+		}
+		if c.Alerts.CooldownMinutes == 0 {
+			c.Alerts.CooldownMinutes = 30
+		}
 	}
 
 	for i := range c.Miners {

@@ -48,6 +48,10 @@ type Options struct {
 	Settings        *settings.Store
 	SettingsEnabled bool
 
+	// MetricsEnabled exposes GET /metrics in Prometheus format, gated to the
+	// local network. Off means the route 404s.
+	MetricsEnabled bool
+
 	// MinerNames is the configured fleet. A threshold may only be set for a
 	// miner that actually exists.
 	MinerNames []string
@@ -135,6 +139,7 @@ func NewHandler(o Options) http.Handler {
 
 	// Operator surfaces. Loopback only, which on the Pi means the kiosk itself.
 	mux.Handle("/healthz", o.trustedOnly(getOnly(o.handleHealth)))
+	mux.Handle("/metrics", o.metricsOnly(getOnly(o.handleMetrics)))
 	mux.Handle("/settings", o.operatorOnly(getOnly(o.handleSettingsPage)))
 	mux.Handle("/api/v1/settings", o.operatorOnly(getOnly(o.handleSettingsGet)))
 	mux.Handle("/api/v1/settings/screensaver", o.operatorOnly(http.HandlerFunc(o.handleScreensaver)))
@@ -356,6 +361,18 @@ func (o Options) trustedOnly(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// metricsOnly gates the Prometheus endpoint to the local network and the
+// dashboard.metrics toggle.
+func (o Options) metricsOnly(next http.Handler) http.Handler {
+	return o.trustedOnly(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !o.MetricsEnabled {
+			http.NotFound(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	}))
 }
 
 // operatorOnly additionally requires the settings surface to be switched on

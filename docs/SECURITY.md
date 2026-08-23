@@ -44,6 +44,16 @@ Plus `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` and
 `X-Frame-Options: DENY`. Everything the page needs (fonts included) ships in the
 binary, so nothing is fetched from a CDN.
 
+`GET /metrics` (Prometheus) is served read-only and gated to the local network,
+so Prometheus/Grafana on the same LAN can scrape it; `dashboard.metrics: false`
+removes it. It carries operational figures only (hashrate, power, temperature,
+difficulty, price), no addresses.
+
+Operator alerts are opt-in and outbound only: nothing is sent unless
+`alerts.webhook_url` is set, and then only to exactly that URL, which is a secret
+held in the config and never exposed by the API or UI. The URL comes from the
+operator's config, never from data observed on the network.
+
 The read-only dashboard is served to the whole LAN. The **admin surface**
 (`/settings`, the config APIs, `/healthz`) answers only to the local network:
 loopback plus RFC1918 / unique-local / link-local addresses. Public addresses

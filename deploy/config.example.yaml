@@ -76,6 +76,9 @@ dashboard:
   settings: true
   settings_path: /var/lib/rmm/thresholds.json
 
+  # Expose GET /metrics in Prometheus format, gated to the local network.
+  metrics: true
+
   # Burn-in screensaver: after this many idle minutes the kiosk shows a single
   # floating panel (fleet total + key network figures) drifting across a black
   # screen. 0 disables it.
@@ -85,6 +88,16 @@ dashboard:
 # settings file (miners.json, thresholds.json, history.gob live in that dir).
 # Miners and provider URLs below seed the first run; after that they are edited
 # live on the admin page and stored in miners.json.
+# Opt-in operator alerts. Everything stays off unless webhook_url is set. The
+# URL is a secret kept in this file only; it is never exposed by the API or UI.
+# Alerts POST a small JSON body (works with ntfy, or a Slack/Discord webhook
+# wrapper). Delivery is outbound only, to exactly this URL.
+alerts:
+  webhook_url: ""          # e.g. https://ntfy.sh/your-private-topic
+  offline_minutes: 10      # alert when a miner is offline this long (0 = off)
+  temp_alerts: true        # alert when ASIC temperature reaches its critical level
+  cooldown_minutes: 30     # minimum gap between repeats of the same alert
+
 history:
   enabled: true
   retention_days: 7

@@ -66,19 +66,27 @@ func RunMiner(ctx context.Context, c miner.Collector, store *state.Store, interv
 	})
 }
 
-// RunPool polls the solo pool until ctx is done.
-func RunPool(ctx context.Context, a pool.Adapter, store *state.Store, interval, timeout time.Duration, log *slog.Logger) {
+// RunPool polls the solo pool until ctx is done. It hands the fetcher the
+// current miner telemetry each cycle, which the router uses for provider
+// detection and the generic adapter uses as its data source.
+func RunPool(ctx context.Context, f pool.Fetcher, store *state.Store, interval, timeout time.Duration, log *slog.Logger) {
 	loop(ctx, interval, func(ctx context.Context) error {
 		fetchCtx, cancel := context.WithTimeout(ctx, timeout)
 		defer cancel()
 
-		snap, err := a.Fetch(fetchCtx)
+		miners := store.Miners()
+		tel := make(map[string]miner.Snapshot, len(miners))
+		for _, m := range miners {
+			tel[m.Name] = m
+		}
+
+		snap, err := f.Fetch(fetchCtx, tel)
 		if err != nil {
 			if ctx.Err() != nil {
 				return err
 			}
 			store.FailPool(time.Now(), err.Error())
-			log.Debug("pool fetch failed", "pool", a.Name(), "err", err)
+			log.Debug("pool fetch failed", "pool", f.Name(), "err", err)
 			return err
 		}
 		store.SetPool(snap)

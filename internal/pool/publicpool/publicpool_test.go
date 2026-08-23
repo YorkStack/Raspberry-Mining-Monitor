@@ -44,15 +44,15 @@ func poolMux() *http.ServeMux {
 	return mux
 }
 
-func targets() []Target {
-	return []Target{
-		{MinerName: "NerdOctaxe", Address: addrNerd},
-		{MinerName: "Gamma 602", Address: addrGamma},
-	}
+func input() pool.Input {
+	return pool.Input{Miners: []pool.Miner{
+		{Name: "NerdOctaxe", Address: addrNerd},
+		{Name: "Gamma 602", Address: addrGamma},
+	}}
 }
 
 func newAdapter(base string) *Adapter {
-	return New(Config{BaseURL: base, Timeout: 2 * time.Second, Targets: targets()})
+	return New(Config{BaseURL: base, Timeout: 2 * time.Second})
 }
 
 func TestNameAndCapabilities(t *testing.T) {
@@ -61,14 +61,14 @@ func TestNameAndCapabilities(t *testing.T) {
 		t.Errorf("Name = %q", a.Name())
 	}
 	caps := a.Capabilities()
-	if caps.RejectedShares {
-		t.Error("RejectedShares should be false: Public Pool does not report it")
+	if caps.Has(pool.FieldRejectedShares) {
+		t.Error("RejectedShares should be unavailable: Public Pool does not report it")
 	}
-	if caps.PoolDifficulty {
-		t.Error("PoolDifficulty should be false")
+	if caps.Has(pool.FieldPoolDifficulty) {
+		t.Error("PoolDifficulty should be unavailable")
 	}
-	if caps.ConnectionStatus {
-		t.Error("ConnectionStatus should be false: last-share age is inferred")
+	if !caps.Has(pool.FieldHashrate) || !caps.Has(pool.FieldBestShare) || !caps.Has(pool.FieldLastShare) {
+		t.Error("expected hashrate, best_share and last_share to be supported")
 	}
 }
 
@@ -76,7 +76,7 @@ func TestFetchAggregatesAcrossAddresses(t *testing.T) {
 	srv := httptest.NewServer(poolMux())
 	defer srv.Close()
 
-	s, err := newAdapter(srv.URL).Fetch(context.Background())
+	s, err := newAdapter(srv.URL).Fetch(context.Background(), input())
 	if err != nil {
 		t.Fatalf("Fetch: %v", err)
 	}
@@ -99,7 +99,7 @@ func TestWorkerHashrateConvertedFromHsToThs(t *testing.T) {
 	srv := httptest.NewServer(poolMux())
 	defer srv.Close()
 
-	s, _ := newAdapter(srv.URL).Fetch(context.Background())
+	s, _ := newAdapter(srv.URL).Fetch(context.Background(), input())
 	var nerd *pool.Worker
 	for i := range s.Workers {
 		if s.Workers[i].MinerName == "NerdOctaxe" {
@@ -119,7 +119,7 @@ func TestWorkersLabelledByMiner(t *testing.T) {
 	srv := httptest.NewServer(poolMux())
 	defer srv.Close()
 
-	s, _ := newAdapter(srv.URL).Fetch(context.Background())
+	s, _ := newAdapter(srv.URL).Fetch(context.Background(), input())
 	names := map[string]bool{}
 	for _, w := range s.Workers {
 		names[w.MinerName] = true
@@ -133,7 +133,7 @@ func TestLastShareIsMostRecentWorker(t *testing.T) {
 	srv := httptest.NewServer(poolMux())
 	defer srv.Close()
 
-	s, _ := newAdapter(srv.URL).Fetch(context.Background())
+	s, _ := newAdapter(srv.URL).Fetch(context.Background(), input())
 	if s.LastShare == nil {
 		t.Fatal("LastShare = nil")
 	}
@@ -157,7 +157,7 @@ func TestUnknownAddressIsNotAnError(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	s, err := newAdapter(srv.URL).Fetch(context.Background())
+	s, err := newAdapter(srv.URL).Fetch(context.Background(), input())
 	if err != nil {
 		t.Fatalf("Fetch should not fail when one address is unknown: %v", err)
 	}
@@ -172,8 +172,8 @@ func TestUnknownAddressIsNotAnError(t *testing.T) {
 // If every address fails at the network level, the fetch fails so the source
 // goes stale rather than showing an empty pool.
 func TestAllAddressesFailingIsAnError(t *testing.T) {
-	c := New(Config{BaseURL: "http://127.0.0.1:1", Timeout: 300 * time.Millisecond, Targets: targets()})
-	if _, err := c.Fetch(context.Background()); err == nil {
+	c := New(Config{BaseURL: "http://127.0.0.1:1", Timeout: 300 * time.Millisecond})
+	if _, err := c.Fetch(context.Background(), input()); err == nil {
 		t.Error("all addresses unreachable returned no error")
 	}
 }
@@ -182,7 +182,7 @@ func TestPoolWideStatsParsed(t *testing.T) {
 	srv := httptest.NewServer(poolMux())
 	defer srv.Close()
 
-	s, _ := newAdapter(srv.URL).Fetch(context.Background())
+	s, _ := newAdapter(srv.URL).Fetch(context.Background(), input())
 	if s.PoolMiners == nil || *s.PoolMiners != 2410 {
 		t.Errorf("PoolMiners = %v, want 2410", s.PoolMiners)
 	}
@@ -204,7 +204,7 @@ func TestPoolEndpointFailureStillYieldsWorkers(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	s, err := newAdapter(srv.URL).Fetch(context.Background())
+	s, err := newAdapter(srv.URL).Fetch(context.Background(), input())
 	if err != nil {
 		t.Fatalf("Fetch: %v", err)
 	}
@@ -222,7 +222,7 @@ func TestContextDeadlineHonoured(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-	if _, err := newAdapter(srv.URL).Fetch(ctx); err == nil {
+	if _, err := newAdapter(srv.URL).Fetch(ctx, input()); err == nil {
 		t.Error("slow pool past deadline returned no error")
 	}
 }
@@ -242,7 +242,7 @@ func TestOneRequestPerAddressPerFetch(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	_, _ = newAdapter(srv.URL).Fetch(context.Background())
+	_, _ = newAdapter(srv.URL).Fetch(context.Background(), input())
 	if n := atomic.LoadInt32(&nerdHits); n != 1 {
 		t.Errorf("address queried %d times in one fetch, want 1", n)
 	}

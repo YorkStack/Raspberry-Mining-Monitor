@@ -34,8 +34,11 @@ type Spec struct {
 	Type          string        `json:"type"`
 	Host          string        `json:"host"`
 	PayoutAddress string        `json:"payoutAddress"`
-	Interval      time.Duration `json:"interval"`
-	Timeout       time.Duration `json:"timeout"`
+	// PoolProvider overrides provider detection for this miner (empty = use the
+	// global default / auto-detect).
+	PoolProvider string        `json:"poolProvider,omitempty"`
+	Interval     time.Duration `json:"interval"`
+	Timeout      time.Duration `json:"timeout"`
 
 	NominalTHs   float64 `json:"nominalThs,omitempty"`
 	NominalW     float64 `json:"nominalW,omitempty"`

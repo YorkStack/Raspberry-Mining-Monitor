@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1600, initial-scale=1">
+<title>History — Raspberry Mining Monitor</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23071019'/%3E%3Cpath d='M5 3h4a2.5 2.5 0 0 1 0 5H5zM5 8h4.5a2.5 2.5 0 0 1 0 5H5zM7 1.5v2M9.5 1.5v2M7 12.5v2M9.5 12.5v2' stroke='%2300E5FF' stroke-width='1.3' fill='none'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="cfg-body">
+<div class="cfg">
+  <header class="hdr cfg-hdr">
+    <div class="hdr-title">FLEET HISTORY</div>
+    <div class="hdr-right">
+      <div class="range-tabs" id="range-tabs">
+        <button class="range-tab is-on" data-range="1h">1 H</button>
+        <button class="range-tab" data-range="24h">24 H</button>
+        <button class="range-tab" data-range="7d">7 D</button>
+      </div>
+      <a class="hchip cfg-link" href="/">&larr;&nbsp; BACK TO DASHBOARD</a>
+    </div>
+  </header>
+
+  <div class="chart-block">
+    <div class="chart-hd">FLEET HASHRATE <span class="chart-unit">TH/s</span> <span class="chart-last" id="last-hash"></span></div>
+    <canvas class="chart" id="c-hash" width="1560" height="200"></canvas>
+  </div>
+  <div class="chart-block">
+    <div class="chart-hd">FLEET POWER <span class="chart-unit">W</span> <span class="chart-last" id="last-power"></span></div>
+    <canvas class="chart" id="c-power" width="1560" height="200"></canvas>
+  </div>
+  <div class="chart-block">
+    <div class="chart-hd">BTC PRICE <span class="chart-unit">EUR</span> <span class="chart-last" id="last-price"></span></div>
+    <canvas class="chart" id="c-price" width="1560" height="200"></canvas>
+  </div>
+
+  <div class="cfg-msg" id="hist-msg"></div>
+</div>
+<script type="module" src="history.js"></script>
+</body>
+</html>

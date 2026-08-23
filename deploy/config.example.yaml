@@ -56,7 +56,10 @@ dashboard:
   # screen. 0 disables it.
   screensaver_minutes: 15
 
+# Rolling fleet history (1h/24h/7d) is kept in RAM and persisted next to the
+# settings file (miners.json, thresholds.json, history.gob live in that dir).
+# Miners and provider URLs below seed the first run; after that they are edited
+# live on the admin page and stored in miners.json.
 history:
   enabled: true
-  path: /var/lib/rmm/history.db
   retention_days: 7

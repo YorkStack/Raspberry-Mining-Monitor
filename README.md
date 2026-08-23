@@ -17,8 +17,9 @@ The dashboard, running in demo mode at 1600 × 600 (Waveshare 9.3"):
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
-The admin / config page — reachable from the local network — with per-miner
-monitoring toggles and temperature thresholds:
+The admin / config page — reachable from the local network — where you can add,
+edit and remove miners, set the data-provider URLs, toggle monitoring per miner,
+and tune temperature thresholds:
 
 ![Admin / Config](docs/screenshots/config.png)
 
@@ -257,11 +258,10 @@ Written up in [docs/PHASE-0-DESIGN-REVIEW.md](docs/PHASE-0-DESIGN-REVIEW.md).
 - Capability gating for metrics Public Pool cannot supply
 - solo.ckpool.org adapter later
 
-### Phase 5 — History
-- Hashrate history
-- Temperature history
-- Power history
-- Lightweight local storage
+### Phase 5 — History (done)
+- Rolling fleet history over 1 h / 24 h / 7 d
+- Hashrate, power and BTC price charts (canvas, no chart library)
+- Lightweight in-RAM rings persisted to a small file (no database, few SD writes)
 
 ### Phase 6 — Raspberry Pi (in progress)
 - Console launcher to choose which project to run (`deploy/launcher/`)

@@ -139,7 +139,118 @@ document.addEventListener("click", async (e) => {
   }
 });
 
-fetch("/api/v1/settings")
-  .then((r) => r.json())
-  .then((s) => { state = s; render(); })
-  .catch((err) => message("Could not load settings: " + err, "bad"));
+function loadSettings() {
+  return fetch("/api/v1/settings")
+    .then((r) => r.json())
+    .then((s) => { state = s; render(); })
+    .catch((err) => message("Could not load settings: " + err, "bad"));
+}
+loadSettings();
+
+
+/* ---- miners + providers editor ---- */
+
+let minersState = { miners: [], providers: {} };
+
+function minerRow(m, i) {
+  return `
+    <div class="miner-row" data-i="${i}">
+      <input class="m-name" placeholder="Name" value="${(m.name || "").replace(/"/g, "&quot;")}">
+      <select class="m-type">
+        <option value="axeos"${m.type !== "demo" ? " selected" : ""}>axeos</option>
+        <option value="demo"${m.type === "demo" ? " selected" : ""}>demo</option>
+      </select>
+      <input class="m-host" placeholder="IP / hostname" value="${(m.host || "").replace(/"/g, "&quot;")}">
+      <input class="m-addr" placeholder="payout address" value="${(m.payoutAddress || "").replace(/"/g, "&quot;")}">
+      <input class="m-int" type="number" min="1" max="60" title="poll interval (s)" value="${m.intervalSeconds || 2}">
+      <button class="cfg-btn m-del" title="remove">✕</button>
+    </div>`;
+}
+
+function renderMiners() {
+  el("cfg-miners").innerHTML =
+    `<div class="miner-row miner-head">
+       <span>Name</span><span>Type</span><span>Host</span><span>Payout address</span><span>Poll s</span><span></span>
+     </div>` + minersState.miners.map(minerRow).join("");
+  el("prov-btc").value = minersState.providers.bitcoinBaseUrl || "";
+  el("prov-pool").value = minersState.providers.poolBaseUrl || "";
+}
+
+function collectMiners() {
+  return [...document.querySelectorAll("#cfg-miners .miner-row:not(.miner-head)")].map((row) => ({
+    name: row.querySelector(".m-name").value.trim(),
+    type: row.querySelector(".m-type").value,
+    host: row.querySelector(".m-host").value.trim(),
+    payoutAddress: row.querySelector(".m-addr").value.trim(),
+    intervalSeconds: Number(row.querySelector(".m-int").value) || 2,
+  }));
+}
+
+async function loadMiners() {
+  try {
+    minersState = await fetch("/api/v1/miners").then((r) => {
+      if (!r.ok) throw new Error("miners API unavailable");
+      return r.json();
+    });
+    renderMiners();
+  } catch (err) {
+    const host = el("cfg-miners");
+    if (host) host.innerHTML = `<p class="cfg-subnote">Miner editing is only available from the local network.</p>`;
+  }
+}
+
+document.addEventListener("click", async (e) => {
+  if (e.target.closest("#miner-add")) {
+    minersState.miners.push({ name: "", type: "axeos", host: "", payoutAddress: "", intervalSeconds: 2 });
+    renderMiners();
+    return;
+  }
+  if (e.target.closest(".m-del")) {
+    const row = e.target.closest(".miner-row");
+    const i = Number(row.dataset.i);
+    minersState.miners = collectMiners().filter((_, idx) => idx !== i);
+    renderMiners();
+    return;
+  }
+  if (e.target.closest("#miner-save")) {
+    try {
+      const res = await fetch("/api/v1/miners", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ miners: collectMiners() }),
+      });
+      const text = await res.text();
+      if (!res.ok) throw new Error(text.trim() || res.statusText);
+      minersState = JSON.parse(text);
+      renderMiners();
+      // Reload the whole settings view so monitoring/threshold sections match.
+      await loadSettings();
+      message("Miners saved and applied.", "ok");
+    } catch (err) {
+      message(String(err.message || err), "bad");
+    }
+    return;
+  }
+  if (e.target.closest("#prov-save")) {
+    try {
+      const res = await fetch("/api/v1/providers", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bitcoinBaseUrl: el("prov-btc").value.trim(),
+          poolBaseUrl: el("prov-pool").value.trim(),
+        }),
+      });
+      const text = await res.text();
+      if (!res.ok) throw new Error(text.trim() || res.statusText);
+      minersState = JSON.parse(text);
+      renderMiners();
+      message("Providers saved and applied.", "ok");
+    } catch (err) {
+      message(String(err.message || err), "bad");
+    }
+    return;
+  }
+});
+
+loadMiners();

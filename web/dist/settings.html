@@ -25,6 +25,27 @@
     red only after the firmware had already stepped in.
   </p>
 
+  <h2 class="cfg-section">MINERS</h2>
+  <p class="cfg-subnote">Add, edit or remove miners. Changes apply immediately — a newly added AxeOS
+  miner is polled at once and shows offline until its hardware is on the network. Host is an IP or
+  hostname (e.g. <code>192.168.1.51</code> or <code>bitaxe.local</code>).</p>
+  <div id="cfg-miners"></div>
+  <div class="cfg-actions" style="margin-top:12px">
+    <button class="cfg-btn" id="miner-add">+ ADD MINER</button>
+    <button class="cfg-btn cfg-save" id="miner-save">SAVE MINERS</button>
+  </div>
+
+  <h2 class="cfg-section">DATA PROVIDERS</h2>
+  <p class="cfg-subnote">Base URLs for the Bitcoin network data and the solo pool. Leave as-is to use
+  the defaults (mempool.space, public-pool.io). A self-hosted mempool instance can go here.</p>
+  <div class="cfg-providers">
+    <label class="cfg-field cfg-field-wide"><span>Bitcoin base URL</span>
+      <input type="text" id="prov-btc" placeholder="https://mempool.space"></label>
+    <label class="cfg-field cfg-field-wide"><span>Pool base URL</span>
+      <input type="text" id="prov-pool" placeholder="https://public-pool.io:40557"></label>
+    <button class="cfg-btn cfg-save" id="prov-save">SAVE PROVIDERS</button>
+  </div>
+
   <h2 class="cfg-section">MONITORING</h2>
   <p class="cfg-subnote">Switch a miner off to hide it from the dashboard and stop polling it. This
   only affects the monitor — the miner keeps mining.</p>

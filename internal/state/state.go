@@ -45,6 +45,25 @@ func New(minerNames []string) *Store {
 	return s
 }
 
+// Reconcile updates the set of miners to the given names, in order. Existing
+// miners keep their last snapshot; new names get a placeholder; dropped names
+// are removed. Used when the operator edits the miner list at runtime.
+func (s *Store) Reconcile(names []string) {
+	s.mu.Lock()
+	next := make(map[string]miner.Snapshot, len(names))
+	for _, n := range names {
+		if cur, ok := s.miners[n]; ok {
+			next[n] = cur
+		} else {
+			next[n] = miner.Snapshot{Name: n}
+		}
+	}
+	s.order = append([]string(nil), names...)
+	s.miners = next
+	s.mu.Unlock()
+	s.notify()
+}
+
 // SetMiner stores a fresh snapshot for a configured miner. Unknown names are
 // ignored so a misconfigured collector cannot add phantom tiles.
 func (s *Store) SetMiner(name string, snap miner.Snapshot) {

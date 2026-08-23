@@ -235,12 +235,16 @@
         <div class="row"><dt><span>Last Share</span><span class="sub" id="pool-share-note"></span></dt><dd id="pool-lastshare">—</dd></div>
       </dl>
 
-      <dl class="rows">
-        <div class="row"><dt><span>P(block) 24h</span></dt><dd id="prob-day">—</dd></div>
-        <div class="row"><dt><span>P(block) 7d</span></dt><dd id="prob-week">—</dd></div>
-        <div class="row"><dt><span>P(block) 30d</span></dt><dd id="prob-month">—</dd></div>
-        <div class="row"><dt><span>P(block) 1y</span></dt><dd id="prob-year">—</dd></div>
-        <div class="row"><dt><span>Median Time to Block</span></dt><dd id="prob-median">—</dd></div>
+      <dl class="rows rows-odds">
+        <div class="row row-oddshead">
+          <dt><span>SOLO BLOCK ODDS</span><span class="sub">Chance &ge;1 Block</span></dt>
+          <dd class="odds-hr" id="odds-hashrate">—</dd>
+        </div>
+        <div class="row"><dt><span>Today</span></dt><dd><b class="odds-n" id="odds-day">—</b><span class="sub" id="pct-day"></span></dd></div>
+        <div class="row"><dt><span>7 Days</span></dt><dd><b class="odds-n" id="odds-week">—</b><span class="sub" id="pct-week"></span></dd></div>
+        <div class="row"><dt><span>30 Days</span></dt><dd><b class="odds-n" id="odds-month">—</b><span class="sub" id="pct-month"></span></dd></div>
+        <div class="row"><dt><span>1 Year</span></dt><dd><b class="odds-n" id="odds-year">—</b><span class="sub" id="pct-year"></span></dd></div>
+        <div class="row"><dt><span>Statistical Block Interval</span></dt><dd id="prob-interval" class="odds-int" title="This is a statistical average, not a countdown. Every hash is an independent attempt. A valid block could theoretically be found immediately, or no block may be found for much longer than the expected interval.">—</dd></div>
       </dl>
 
       <div class="holo">

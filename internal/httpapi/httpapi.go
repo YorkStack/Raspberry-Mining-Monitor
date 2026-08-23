@@ -596,6 +596,13 @@ func (o Options) handleMiners(w http.ResponseWriter, r *http.Request) {
 			if prev, ok := existing[m.Name]; ok {
 				spec.Token = prev.Token
 				spec.PoolProvider = prev.PoolProvider
+				// Nominal/demo figures are not part of the admin form either, so
+				// preserve them rather than zeroing a demo miner's hashrate.
+				spec.NominalTHs = prev.NominalTHs
+				spec.NominalW = prev.NominalW
+				spec.NominalTempC = prev.NominalTempC
+				spec.Model = prev.Model
+				spec.Fans = prev.Fans
 			}
 			specs = append(specs, spec)
 		}

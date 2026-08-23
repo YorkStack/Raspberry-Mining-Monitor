@@ -61,6 +61,18 @@ function years(y) {
   return y < 1 ? Math.round(y * 365.25) + " d" : int(y) + " y";
 }
 
+// oddsStr turns an "odds against" figure N into "1 : N" with a compact
+// magnitude, e.g. 480000 -> "1 : 480k". A single hash's odds, not a countdown.
+function oddsStr(n) {
+  if (!has(n) || !Number.isFinite(n) || n <= 0) return EM_DASH;
+  let body;
+  if (n >= 1e9) body = (n / 1e9).toFixed(n < 1e10 ? 1 : 0) + "B";
+  else if (n >= 1e6) body = (n / 1e6).toFixed(n < 1e7 ? 1 : 0) + "M";
+  else if (n >= 1e3) body = (n / 1e3).toFixed(n < 1e4 ? 1 : 0) + "k";
+  else body = String(Math.round(n));
+  return "1 : " + body;
+}
+
 const el = (id) => document.getElementById(id);
 const setText = (id, text) => { const n = el(id); if (n) n.textContent = text; };
 
@@ -220,15 +232,25 @@ function renderPool(p, prob) {
   setText("pool-rej-note", p.rejectedFromMiners ? "miners" : "");
   setText("pool-share-note", p.lastShareInferred ? "inferred" : "");
 
+  const oddsIds = ["odds-day", "odds-week", "odds-month", "odds-year"];
+  const pctIds = ["pct-day", "pct-week", "pct-month", "pct-year"];
   if (!prob) {
-    ["prob-day", "prob-week", "prob-month", "prob-year", "prob-median"].forEach((id) => setText(id, EM_DASH));
+    setText("odds-hashrate", EM_DASH);
+    oddsIds.forEach((id) => setText(id, EM_DASH));
+    pctIds.forEach((id) => setText(id, ""));
+    setText("prob-interval", EM_DASH);
     return;
   }
-  setText("prob-day", percent(prob.day));
-  setText("prob-week", percent(prob.week));
-  setText("prob-month", percent(prob.month));
-  setText("prob-year", percent(prob.year));
-  setText("prob-median", years(prob.medianYears));
+  setText("odds-hashrate", has(prob.combinedHashrateThs) ? si(prob.combinedHashrateThs * 1e12) + "H/s" : EM_DASH);
+  setText("odds-day", oddsStr(prob.dayOdds));
+  setText("odds-week", oddsStr(prob.weekOdds));
+  setText("odds-month", oddsStr(prob.monthOdds));
+  setText("odds-year", oddsStr(prob.yearOdds));
+  setText("pct-day", percent(prob.day));
+  setText("pct-week", percent(prob.week));
+  setText("pct-month", percent(prob.month));
+  setText("pct-year", percent(prob.year));
+  setText("prob-interval", "~" + years(prob.meanYears));
 }
 
 function renderNetwork(n, prob) {

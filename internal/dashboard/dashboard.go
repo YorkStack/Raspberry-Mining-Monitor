@@ -196,15 +196,33 @@ type NetworkView struct {
 // ProbabilityView holds solo block probabilities. Every field is a
 // probability, never a prediction.
 type ProbabilityView struct {
-	Day   float64 `json:"day"`
-	Week  float64 `json:"week"`
-	Month float64 `json:"month"`
-	Year  float64 `json:"year"`
+	// Probability of finding at least one block within each window (0..1).
+	NextBlock float64 `json:"nextBlock"`
+	Day       float64 `json:"day"`
+	Week      float64 `json:"week"`
+	Month     float64 `json:"month"`
+	Year      float64 `json:"year"`
 
+	// OddsAgainst is the N in "1 in N" for each window (0 when undefined).
+	NextBlockOdds float64 `json:"nextBlockOdds"`
+	DayOdds       float64 `json:"dayOdds"`
+	WeekOdds      float64 `json:"weekOdds"`
+	MonthOdds     float64 `json:"monthOdds"`
+	YearOdds      float64 `json:"yearOdds"`
+
+	// MeanSeconds is the statistical mean interval between blocks. It is an
+	// average of a memoryless process, never a countdown.
+	MeanSeconds float64 `json:"meanSeconds"`
 	MeanYears   float64 `json:"meanYears"`
 	MedianYears float64 `json:"medianYears"`
 
 	ShareOfNetwork float64 `json:"shareOfNetwork"`
+
+	// Inputs the odds were computed from, so the UI can show what it is based on.
+	CombinedHashrateTHs float64   `json:"combinedHashrateThs"`
+	Difficulty          float64   `json:"difficulty"`
+	NetworkHashrateHs   float64   `json:"networkHashrateHs"`
+	AsOf                time.Time `json:"asOf"`
 }
 
 // MaskAddress truncates a payout address for display. The address is public
@@ -372,13 +390,27 @@ func Build(in Input, now time.Time) View {
 	// absent rather than zero, because a zero would read as certainty.
 	if n.HasData() && n.Difficulty > 0 && totals.HashrateTHs > 0 {
 		hs := totals.HashrateTHs * 1e12
+		next := probability.AtLeastOne(hs, n.Difficulty, probability.NextBlock)
+		day := probability.AtLeastOne(hs, n.Difficulty, probability.Day)
+		week := probability.AtLeastOne(hs, n.Difficulty, probability.Week)
+		month := probability.AtLeastOne(hs, n.Difficulty, probability.Month)
+		year := probability.AtLeastOne(hs, n.Difficulty, probability.Year)
 		p := ProbabilityView{
-			Day:   probability.AtLeastOne(hs, n.Difficulty, probability.Day),
-			Week:  probability.AtLeastOne(hs, n.Difficulty, probability.Week),
-			Month: probability.AtLeastOne(hs, n.Difficulty, probability.Month),
-			Year:  probability.AtLeastOne(hs, n.Difficulty, probability.Year),
+			NextBlock: next, Day: day, Week: week, Month: month, Year: year,
+
+			NextBlockOdds: probability.OddsAgainst(next),
+			DayOdds:       probability.OddsAgainst(day),
+			WeekOdds:      probability.OddsAgainst(week),
+			MonthOdds:     probability.OddsAgainst(month),
+			YearOdds:      probability.OddsAgainst(year),
+
+			CombinedHashrateTHs: totals.HashrateTHs,
+			Difficulty:          n.Difficulty,
+			NetworkHashrateHs:   n.NetworkHashrateHs,
+			AsOf:                n.FetchedAt,
 		}
 		if mean, ok := probability.MeanTimeToBlockSeconds(hs, n.Difficulty); ok {
+			p.MeanSeconds = mean
 			p.MeanYears = mean / probability.Year
 		}
 		if median, ok := probability.MedianTimeToBlockSeconds(hs, n.Difficulty); ok {

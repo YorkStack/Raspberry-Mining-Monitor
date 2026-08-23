@@ -13,10 +13,13 @@ import "math"
 // Time windows in seconds. Seconds are used rather than time.Duration because
 // solo waiting times routinely exceed the ~292-year range of a time.Duration.
 const (
-	Day   = 86400.0
-	Week  = 7 * Day
-	Month = 30 * Day
-	Year  = 365.25 * Day
+	// NextBlock is one network block interval (~10 minutes), the odds of the
+	// miner finding the very next block.
+	NextBlock = 600.0
+	Day       = 86400.0
+	Week      = 7 * Day
+	Month     = 30 * Day
+	Year      = 365.25 * Day
 )
 
 // hashesPerBlock is the expected number of hashes needed to find a block at a
@@ -92,4 +95,14 @@ func ShareOfNetwork(hashrateHs, networkHashrateHs float64) (float64, bool) {
 		return 0, false
 	}
 	return hashrateHs / networkHashrateHs, true
+}
+
+// OddsAgainst turns a probability p into the "1 in N" figure, where N = 1/p.
+// It returns 0 for a probability that is not a usable fraction, so callers can
+// treat 0 as "no meaningful odds" rather than dividing by zero.
+func OddsAgainst(p float64) float64 {
+	if p <= 0 || p > 1 || math.IsNaN(p) || math.IsInf(p, 0) {
+		return 0
+	}
+	return 1 / p
 }

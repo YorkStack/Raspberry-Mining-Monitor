@@ -84,6 +84,17 @@ are gitignored, along with `deploy/deploy.env`, `thresholds.json`,
 source. The payout address is masked in the UI; the full value stays in the
 config file on the host.
 
+Two kinds of token can appear in the config, and both are kept out of the
+browser: the Braiins API token (`pool.token`) and a per-miner Bearer token
+(`miners[].token`) for a miner behind a monitoring security contract, such as the
+Mac metal miner. The admin API never returns either one, the settings page
+cannot read them, and editing a miner preserves its token rather than sending it
+to the browser and back. The monitor still reads only: the miner token buys it a
+GET to `/api/system/info`, nothing more. Because that exporter is currently plain
+HTTP, the Bearer token is not encrypted in transit, so keep such a miner on a
+trusted management network and never place it on an untrusted LAN or the
+internet.
+
 ## What is out of scope
 
 - No authentication or TLS. The monitor expects a trusted LAN, not the public

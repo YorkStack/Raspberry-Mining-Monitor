@@ -36,12 +36,18 @@ type Config struct {
 	Name    string
 	BaseURL string
 	Timeout time.Duration
+	// Token is an optional Bearer token. A miner behind the LAN monitoring
+	// security contract (for example the Mac metal miner) requires exactly one
+	// "Authorization: Bearer TOKEN" header on every request. Empty means no
+	// authentication, as with a plain AxeOS miner.
+	Token string
 }
 
 // Client is a single miner's collector.
 type Client struct {
 	name    string
 	baseURL string
+	token   string
 	http    *http.Client
 
 	mu       sync.Mutex
@@ -59,6 +65,7 @@ func New(cfg Config) *Client {
 	return &Client{
 		name:    cfg.Name,
 		baseURL: cfg.BaseURL,
+		token:   cfg.Token,
 		http: &http.Client{
 			Timeout: timeout,
 			Transport: &http.Transport{
@@ -157,6 +164,11 @@ func (c *Client) get(ctx context.Context, path string) (int, []byte, error) {
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "raspberry-mining-monitor")
+	// Exactly one Authorization header, per the miner's security contract. The
+	// token is never logged.
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -176,6 +188,9 @@ func (c *Client) getJSON(ctx context.Context, path string, into any) error {
 	status, body, err := c.get(ctx, path)
 	if err != nil {
 		return err
+	}
+	if status == http.StatusUnauthorized {
+		return fmt.Errorf("axeos %s: unauthorized (401) — check the miner's monitoring token", c.name)
 	}
 	if status != http.StatusOK {
 		return fmt.Errorf("axeos %s: %s returned status %d", c.name, path, status)

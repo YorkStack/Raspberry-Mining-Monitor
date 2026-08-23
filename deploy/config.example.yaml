@@ -25,6 +25,16 @@ miners:
     # Optional: force this miner's pool provider instead of auto-detecting it.
     # pool_provider: ckpool   # publicpool | ckpool | braiins | generic | auto
 
+  # A miner behind the LAN monitoring security contract (e.g. the Mac metal
+  # miner) requires a Bearer token. It is sent as "Authorization: Bearer TOKEN"
+  # and is never shown in the UI. Keep it on a trusted network: the exporter is
+  # plain HTTP, so the token is not encrypted in transit.
+  # - name: MacBook M2
+  #   host: 192.168.1.70:9110
+  #   type: axeos
+  #   payout_address: bc1qYOUR_MAC_ADDRESS
+  #   token: YOUR_32_TO_128_CHAR_URL_SAFE_TOKEN
+
 # Bitcoin network data. provider: public | core | demo
 # base_url can point at a self-hosted mempool instance or a mirror.
 bitcoin:

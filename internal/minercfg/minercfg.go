@@ -36,7 +36,11 @@ type Spec struct {
 	PayoutAddress string        `json:"payoutAddress"`
 	// PoolProvider overrides provider detection for this miner (empty = use the
 	// global default / auto-detect).
-	PoolProvider string        `json:"poolProvider,omitempty"`
+	PoolProvider string `json:"poolProvider,omitempty"`
+	// Token is an optional Bearer token for miners behind the monitoring
+	// security contract. It is persisted here but never returned by the admin
+	// API; see httpapi.apiMiner.
+	Token        string        `json:"token,omitempty"`
 	Interval     time.Duration `json:"interval"`
 	Timeout      time.Duration `json:"timeout"`
 

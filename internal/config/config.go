@@ -57,6 +57,12 @@ type Miner struct {
 	// publicpool | ckpool | braiins | generic | auto (empty = use the global default).
 	PoolProvider string `yaml:"pool_provider"`
 
+	// Token is an optional Bearer token sent on every request to this miner, for
+	// miners behind the LAN monitoring security contract (e.g. the Mac metal
+	// miner). It stays in config.yaml / miners.json and is never exposed through
+	// the admin API or the UI.
+	Token string `yaml:"token"`
+
 	Interval time.Duration `yaml:"interval"`
 	Timeout  time.Duration `yaml:"timeout"`
 

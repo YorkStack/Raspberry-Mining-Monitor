@@ -78,21 +78,51 @@ function drawChart(canvas, points, accessor, color, fmtVal) {
   ctx.shadowBlur = 0;
 }
 
+let miner = ""; // "" = fleet total
+
+// Keep the miner dropdown in sync with the miners that have history.
+function populateMiners(names) {
+  const sel = el("miner-sel");
+  const want = ["", ...(names || [])];
+  const have = [...sel.options].map((o) => o.value);
+  if (have.join("|") !== want.join("|")) {
+    sel.innerHTML = "";
+    want.forEach((v) => {
+      const o = document.createElement("option");
+      o.value = v;
+      o.textContent = v === "" ? "FLEET TOTAL" : v.toUpperCase();
+      sel.appendChild(o);
+    });
+  }
+  // The state is the source of truth; reflect it in the control.
+  sel.value = want.includes(miner) ? miner : "";
+}
+
 async function load() {
   try {
-    const data = await fetch("/api/v1/history?range=" + range).then((r) => r.json());
+    const q = "/api/v1/history?range=" + encodeURIComponent(range) + (miner ? "&miner=" + encodeURIComponent(miner) : "");
+    const data = await fetch(q).then((r) => r.json());
     const pts = data.points || [];
+    populateMiners(data.miners);
     el("hist-msg").textContent = pts.length < 2 ? "Not enough history yet — charts fill in as data is collected." : "";
 
     drawChart(el("c-hash"), pts, (p) => p.hashrate, "rgba(0,229,255,COLOR)", (v) => fmt(v, 2));
     drawChart(el("c-power"), pts, (p) => p.power, "rgba(255,213,79,COLOR)", (v) => fmt(v, 0));
-    drawChart(el("c-price"), pts, (p) => p.price, "rgba(0,230,118,COLOR)", (v) => Math.round(v).toLocaleString("de-DE"));
 
-    const last = pts[pts.length - 1];
-    if (last) {
-      el("last-hash").textContent = fmt(last.hashrate, 2) + " TH/s";
-      el("last-power").textContent = fmt(last.power, 0) + " W";
-      el("last-price").textContent = euro(last.price);
+    const last = pts[pts.length - 1] || null;
+    el("last-hash").textContent = last ? fmt(last.hashrate, 2) + " TH/s" : "";
+    el("last-power").textContent = last ? fmt(last.power, 0) + " W" : "";
+
+    if (miner) {
+      // Per-miner view: the third chart is the miner's ASIC temperature.
+      el("hd-third").innerHTML = 'ASIC TEMP <span class="chart-unit">°C</span> <span class="chart-last" id="last-third"></span>';
+      drawChart(el("c-third"), pts, (p) => p.temp, "rgba(255,82,82,COLOR)", (v) => fmt(v, 0));
+      el("last-third").textContent = last ? fmt(last.temp, 0) + " °C" : "";
+    } else {
+      // Fleet view: the third chart is the BTC price.
+      el("hd-third").innerHTML = 'BTC PRICE <span class="chart-unit">EUR</span> <span class="chart-last" id="last-third"></span>';
+      drawChart(el("c-third"), pts, (p) => p.price, "rgba(0,230,118,COLOR)", (v) => Math.round(v).toLocaleString("de-DE"));
+      el("last-third").textContent = last ? euro(last.price) : "";
     }
   } catch (err) {
     el("hist-msg").textContent = "Could not load history: " + err;
@@ -106,6 +136,15 @@ el("range-tabs").addEventListener("click", (e) => {
   document.querySelectorAll(".range-tab").forEach((t) => t.classList.toggle("is-on", t === b));
   load();
 });
+
+el("miner-sel").addEventListener("change", (e) => {
+  miner = e.target.value;
+  load();
+});
+
+// Deep link: /history?miner=Name opens straight to that miner's charts.
+const initialMiner = new URLSearchParams(location.search).get("miner");
+if (initialMiner) miner = initialMiner;
 
 load();
 setInterval(load, 30000);

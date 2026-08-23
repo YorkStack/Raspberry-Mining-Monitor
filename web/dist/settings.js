@@ -46,6 +46,8 @@ function cardMarkup(name, values, overridden) {
 }
 
 function render() {
+  renderAppearance();
+  renderScreensaver();
   renderMonitoring();
   el("cfg-list").innerHTML = state.miners
     .map((name) => {
@@ -254,3 +256,89 @@ document.addEventListener("click", async (e) => {
 });
 
 loadMiners();
+
+
+/* ---- appearance (per-miner animated marks) + screensaver ---- */
+
+const ICONS = [
+  { id: "i-chip-matrix", label: "2x4 Octa-Chip Array (Laser Scan)" },
+  { id: "i-reactor-core", label: "Plasma Tokamak Turbine" },
+  { id: "i-mac-laptop", label: "Mining Notebook Terminal" },
+  { id: "i-quantum-cube", label: "3D Quantum Hypercube" },
+  { id: "i-spectrum-bars", label: "Tactical Equalizer Bars" },
+  { id: "i-hex-shield", label: "Hex Deflector Shield" },
+  { id: "i-pulsar-beacon", label: "Sub-Space Pulsar Orb" },
+  { id: "i-mining-drill", label: "Orbital Laser Drill" },
+];
+
+function autoIcon(name) {
+  const n = (name || "").toLowerCase();
+  if (n.includes("octa") || n.includes("nerd") || n.includes("axe")) return "i-chip-matrix";
+  if (n.includes("mac") || n.includes("m2") || n.includes("metal") || n.includes("apple")) return "i-mac-laptop";
+  return "i-reactor-core";
+}
+
+function appearanceRow(name, label, current, fallback) {
+  const id = encodeURIComponent(name);
+  const opts = ICONS.map((ic) => `<option value="${ic.id}"${ic.id === current ? " selected" : ""}>${ic.label}</option>`).join("");
+  return `
+    <div class="appear-row">
+      <svg class="mark-preview"><use href="#${current || fallback}"/></svg>
+      <span class="appear-name">${label}</span>
+      <select class="appear-sel" data-miner="${id}">
+        <option value="">Auto (${fallback})</option>
+        ${opts}
+      </select>
+    </div>`;
+}
+
+function renderAppearance() {
+  const icons = state.icons || {};
+  const rows = state.miners.map((name) => appearanceRow(name, name, icons[name] || "", autoIcon(name)));
+  rows.push(appearanceRow("__total__", "Fleet total", icons["__total__"] || "", "i-spectrum-bars"));
+  el("cfg-appearance").innerHTML = rows.join("");
+}
+
+function renderScreensaver() {
+  const sv = state.screensaver || { mode: "floating", minutes: 15 };
+  el("sv-mode").value = sv.mode;
+  el("sv-min").value = sv.minutes;
+}
+
+document.addEventListener("change", async (e) => {
+  const sel = e.target.closest(".appear-sel");
+  if (!sel) return;
+  const encodedName = sel.dataset.miner;
+  try {
+    const res = await fetch("/api/v1/settings/" + encodedName + "/icon", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ icon: sel.value }),
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(text.trim() || res.statusText);
+    state = JSON.parse(text);
+    renderAppearance();
+    message("Mark updated.", "ok");
+  } catch (err) {
+    message(String(err.message || err), "bad");
+  }
+});
+
+document.addEventListener("click", async (e) => {
+  if (!e.target.closest("#sv-save")) return;
+  try {
+    const res = await fetch("/api/v1/settings/screensaver", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: el("sv-mode").value, minutes: Number(el("sv-min").value) || 0 }),
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(text.trim() || res.statusText);
+    state = JSON.parse(text);
+    renderScreensaver();
+    message("Screensaver saved.", "ok");
+  } catch (err) {
+    message(String(err.message || err), "bad");
+  }
+});

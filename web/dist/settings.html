@@ -8,6 +8,201 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body class="cfg-body">
+<svg class="sprite" aria-hidden="true">
+  <symbol id="i-thermo" viewBox="0 0 24 24">
+    <path d="M12 3.5a2.2 2.2 0 0 1 2.2 2.2v7.6a4.4 4.4 0 1 1-4.4 0V5.7A2.2 2.2 0 0 1 12 3.5z"
+          fill="none" stroke="currentColor" stroke-width="1.6"/>
+    <circle cx="12" cy="17.2" r="1.8" fill="currentColor"/>
+  </symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24">
+    <path d="M13.5 2 5 13.2h5.4L9.8 22l8.7-11.4h-5.4z" fill="currentColor"/>
+  </symbol>
+  <symbol id="i-eff" viewBox="0 0 24 24">
+    <path d="M3 18a9 9 0 0 1 18 0" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    <path d="M12 18 16.5 9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    <circle cx="12" cy="18" r="1.6" fill="currentColor"/>
+  </symbol>
+  <symbol id="i-fan" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.6">
+      <circle cx="12" cy="12" r="2.1"/>
+      <path d="M12 9.9c0-3 .6-5.4 2.7-5.4 1.7 0 2.3 2.4.6 4.1-1 1-2.3 1.3-3.3 1.3z"/>
+      <path d="M14.1 12c3 0 5.4.6 5.4 2.7 0 1.7-2.4 2.3-4.1.6-1-1-1.3-2.3-1.3-3.3z"/>
+      <path d="M12 14.1c0 3-.6 5.4-2.7 5.4-1.7 0-2.3-2.4-.6-4.1 1-1 2.3-1.3 3.3-1.3z"/>
+      <path d="M9.9 12c-3 0-5.4-.6-5.4-2.7 0-1.7 2.4-2.3 4.1-.6 1 1 1.3 2.3 1.3 3.3z"/>
+    </g>
+  </symbol>
+  <symbol id="i-radar" viewBox="0 0 48 48">
+    <g fill="none" stroke="currentColor">
+      <circle cx="24" cy="24" r="19" stroke-width="1.1" opacity=".55"/>
+      <circle cx="24" cy="24" r="12" stroke-width="1" opacity=".4"/>
+      <circle cx="24" cy="24" r="5.5" stroke-width="1" opacity=".7"/>
+      <path d="M24 5v6M24 37v6M5 24h6M37 24h6" stroke-width="1.2" opacity=".6"/>
+    </g>
+    <circle cx="24" cy="24" r="2.4" fill="currentColor"/>
+  </symbol>
+  <symbol id="i-cube" viewBox="0 0 48 48">
+    <g fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round">
+      <path d="M24 5 41 14.5v19L24 43 7 33.5v-19z"/>
+      <path d="M24 5v38M7 14.5 41 33.5M41 14.5 7 33.5" opacity=".38"/>
+      <path d="M24 15.5 33 20.5v10L24 35.5 15 30.5v-10z" opacity=".8"/>
+    </g>
+  </symbol>
+  <symbol id="i-asteroid" viewBox="0 0 120 120">
+    <!-- HUD reticle -->
+    <g fill="none" stroke="var(--cyan)" stroke-width="1.4" opacity="0.85">
+      <path d="M14 28V14h14M106 28V14H92M14 92v14h14M106 92v14H92"/>
+      <circle cx="60" cy="60" r="54" stroke-dasharray="4 6" opacity="0.45"/>
+    </g>
+    <!-- Glowing 3D asteroid with a filled body -->
+    <g stroke="var(--cyan)" stroke-width="1.6" fill="rgba(0, 229, 255, 0.06)">
+      <polygon points="60,18 86,28 100,52 92,80 68,100 36,94 20,70 28,38"/>
+    </g>
+    <!-- Inner wireframe edges -->
+    <g stroke="var(--cyan)" stroke-width="1.2" opacity="0.75" fill="none">
+      <path d="M60,18 L52,42 L28,38 M86,28 L68,48 L52,42 M100,52 L68,48 M92,80 L76,68 L68,48 M68,100 L76,68 M36,94 L48,70 L76,68 M20,70 L48,70 M28,38 L48,70 M52,42 L48,70"/>
+    </g>
+    <!-- Glowing ore nodes / laser spots -->
+    <circle cx="68" cy="48" r="7" fill="var(--gold)" opacity="0.25"/>
+    <circle cx="68" cy="48" r="3.2" fill="var(--gold)"/>
+    <circle cx="48" cy="70" r="7" fill="var(--gold)" opacity="0.25"/>
+    <circle cx="48" cy="70" r="3" fill="var(--gold)"/>
+    <circle cx="76" cy="68" r="6" fill="var(--cyan)" opacity="0.3"/>
+    <circle cx="76" cy="68" r="2.8" fill="#ffffff"/>
+  </symbol>
+  <!-- Mac M2: a scrolling line chart (waveform loops seamlessly by 52px). -->
+  <symbol id="i-linechart" viewBox="0 0 64 64">
+    <defs><clipPath id="lc-clip"><rect x="6" y="10" width="52" height="44"/></clipPath></defs>
+    <rect x="6" y="10" width="52" height="44" rx="2" fill="none" stroke="currentColor" stroke-width="1.1" opacity="0.5"/>
+    <line x1="6" y1="32" x2="58" y2="32" stroke="currentColor" stroke-width="0.6" opacity="0.25"/>
+    <line x1="6" y1="21" x2="58" y2="21" stroke="currentColor" stroke-width="0.5" opacity="0.15"/>
+    <line x1="6" y1="43" x2="58" y2="43" stroke="currentColor" stroke-width="0.5" opacity="0.15"/>
+    <g clip-path="url(#lc-clip)">
+      <g class="lc-scroll">
+        <polyline class="lc-line" fill="none" stroke="var(--cyan)" stroke-width="1.6"
+          points="6,38 19,22 32,42 45,26 58,38 71,22 84,42 97,26 110,38"/>
+      </g>
+    </g>
+  </symbol>
+
+  <symbol id="i-gear" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.7">
+      <circle cx="12" cy="12" r="3.4"/>
+      <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1"/>
+    </g>
+  </symbol>
+  <!-- Mac M2: isometric cyber-notebook with a flooding display and a hover. -->
+  <symbol id="i-mac-laptop" viewBox="0 0 64 64">
+    <g class="mac-float" fill="none" stroke="currentColor" stroke-width="1.3">
+      <polygon points="12,14 52,14 46,38 18,38" fill="rgba(0,229,255,0.06)"/>
+      <polygon class="mac-screen" points="16,17 48,17 43,35 21,35" stroke="none" fill="rgba(0,229,255,0.5)"/>
+      <polygon points="18,38 46,38 58,52 6,52" fill="rgba(0,229,255,0.05)"/>
+      <line x1="22" y1="42" x2="42" y2="42" stroke-dasharray="2 2" opacity="0.5"/>
+      <line x1="26" y1="47" x2="38" y2="47" opacity="0.6"/>
+    </g>
+  </symbol>
+
+  <!-- 3D quantum hypercube: filled facets pulsing, inner cube counter-rotating. -->
+  <symbol id="i-quantum-cube" viewBox="0 0 64 64">
+    <g class="qc-outer" stroke="currentColor" stroke-width="1.2">
+      <polygon class="qc-face" points="32,6 54,18 54,40 32,52 10,40 10,18" fill="rgba(0,229,255,0.12)"/>
+    </g>
+    <g class="qc-inner" stroke="currentColor" stroke-width="1">
+      <polygon class="qc-face qc-face-2" points="32,18 44,25 44,38 32,45 20,38 20,25" fill="rgba(0,229,255,0.18)"/>
+    </g>
+    <g stroke="currentColor" stroke-width="0.8" opacity="0.5" fill="none">
+      <path d="M32 6 32 18M54 18 44 25M54 40 44 38M32 52 32 45M10 40 20 38M10 18 20 25"/>
+    </g>
+  </symbol>
+
+  <!-- Tactical hash equalizer: six bars rising in phase. -->
+  <symbol id="i-spectrum-bars" viewBox="0 0 64 64">
+    <g fill="rgba(0,229,255,0.6)">
+      <rect class="sb-bar" x="6"  y="14" width="6" height="40" rx="2"/>
+      <rect class="sb-bar" x="16" y="14" width="6" height="40" rx="2"/>
+      <rect class="sb-bar" x="26" y="14" width="6" height="40" rx="2"/>
+      <rect class="sb-bar" x="36" y="14" width="6" height="40" rx="2"/>
+      <rect class="sb-bar" x="46" y="14" width="6" height="40" rx="2"/>
+      <rect class="sb-bar" x="56" y="14" width="6" height="40" rx="2"/>
+    </g>
+  </symbol>
+
+  <!-- Hex deflector shield: seven hexagons, an energy wave from the centre. -->
+  <symbol id="i-hex-shield" viewBox="0 0 64 64">
+    <g stroke="currentColor" stroke-width="1">
+      <polygon class="hx hx-c"  points="32,24 40,28.6 40,37.4 32,42 24,37.4 24,28.6" fill="rgba(0,229,255,0.15)"/>
+      <polygon class="hx hx-o1" points="32,7  40,11.6 40,20.4 32,25 24,20.4 24,11.6" fill="rgba(0,229,255,0.08)"/>
+      <polygon class="hx hx-o1" points="47,15 55,19.6 55,28.4 47,33 39,28.4 39,19.6" fill="rgba(0,229,255,0.08)"/>
+      <polygon class="hx hx-o1" points="17,15 25,19.6 25,28.4 17,33 9,28.4 9,19.6"  fill="rgba(0,229,255,0.08)"/>
+      <polygon class="hx hx-o2" points="47,33 55,37.6 55,46.4 47,51 39,46.4 39,37.6" fill="rgba(0,229,255,0.06)"/>
+      <polygon class="hx hx-o2" points="17,33 25,37.6 25,46.4 17,51 9,46.4 9,37.6"  fill="rgba(0,229,255,0.06)"/>
+      <polygon class="hx hx-o2" points="32,41 40,45.6 40,54.4 32,59 24,54.4 24,45.6" fill="rgba(0,229,255,0.06)"/>
+    </g>
+  </symbol>
+
+  <!-- Sub-space pulsar orb: breathing core with an expanding ring. -->
+  <symbol id="i-pulsar-beacon" viewBox="0 0 64 64">
+    <circle class="pb-ring" cx="32" cy="32" r="10" fill="none" stroke="var(--cyan)" stroke-width="2"/>
+    <circle cx="32" cy="32" r="26" fill="none" stroke="currentColor" stroke-width="1" opacity="0.35"/>
+    <circle cx="32" cy="32" r="19" fill="none" stroke="currentColor" stroke-width="1" opacity="0.25"/>
+    <circle class="pb-core" cx="32" cy="32" r="9" fill="rgba(0,229,255,0.7)"/>
+  </symbol>
+
+  <!-- Orbital laser drill: charging focus beam that flashes. -->
+  <symbol id="i-mining-drill" viewBox="0 0 64 64">
+    <g stroke="currentColor" stroke-width="1.3" fill="none">
+      <rect x="24" y="8" width="16" height="16" rx="2" fill="rgba(0,229,255,0.1)"/>
+      <path class="md-clampL" d="M24 24 L18 34"/>
+      <path class="md-clampR" d="M40 24 L46 34"/>
+    </g>
+    <polygon class="md-beam" points="26,24 38,24 34,56 30,56" fill="rgba(0,229,255,0.5)" stroke="none"/>
+  </symbol>
+
+  <symbol id="i-trend" viewBox="0 0 40 16">
+    <path d="M1 14l4-3 3 2 4-6 4 4 4-7 4 5 4-8 4 6 3-4" fill="none"
+          stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
+  </symbol>
+
+  <!-- Device-specific miner marks, animated via CSS. -->
+
+  <!-- NerdOctaxe: 2x4 ASIC chip matrix with a sweeping laser scan line. -->
+  <symbol id="i-chip-matrix" viewBox="0 0 64 64">
+    <g stroke="currentColor" fill="none" stroke-width="1.2">
+      <rect class="asic-core" x="6"  y="10" width="10" height="18" rx="2"/>
+      <rect class="asic-core" x="20" y="10" width="10" height="18" rx="2"/>
+      <rect class="asic-core" x="34" y="10" width="10" height="18" rx="2"/>
+      <rect class="asic-core" x="48" y="10" width="10" height="18" rx="2"/>
+      <rect class="asic-core" x="6"  y="34" width="10" height="18" rx="2"/>
+      <rect class="asic-core" x="20" y="34" width="10" height="18" rx="2"/>
+      <rect class="asic-core" x="34" y="34" width="10" height="18" rx="2"/>
+      <rect class="asic-core" x="48" y="34" width="10" height="18" rx="2"/>
+      <line class="laser-scanner" x1="4" y1="8" x2="4" y2="54" stroke="var(--cyan)" stroke-width="2"/>
+    </g>
+  </symbol>
+
+  <!-- Gamma 602: single-core plasma reactor with a spinning turbine. -->
+  <symbol id="i-reactor-core" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="28" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="6 4" opacity="0.6"/>
+    <!-- Six pie wedges that light in sequence, a glow chasing around the wheel. -->
+    <g class="reactor-wedges" fill="var(--cyan)" stroke="none">
+      <path class="reactor-wedge" d="M32 32 L52 32 A20 20 0 0 1 42 49.32 Z"/>
+      <path class="reactor-wedge" d="M32 32 L42 49.32 A20 20 0 0 1 22 49.32 Z"/>
+      <path class="reactor-wedge" d="M32 32 L22 49.32 A20 20 0 0 1 12 32 Z"/>
+      <path class="reactor-wedge" d="M32 32 L12 32 A20 20 0 0 1 22 14.68 Z"/>
+      <path class="reactor-wedge" d="M32 32 L22 14.68 A20 20 0 0 1 42 14.68 Z"/>
+      <path class="reactor-wedge" d="M32 32 L42 14.68 A20 20 0 0 1 52 32 Z"/>
+    </g>
+    <g class="reactor-rotor">
+      <circle cx="32" cy="32" r="20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="14 8"/>
+      <line x1="32" y1="12" x2="32" y2="52" stroke="currentColor" stroke-width="1.2"/>
+      <line x1="12" y1="32" x2="52" y2="32" stroke="currentColor" stroke-width="1.2"/>
+      <line x1="18" y1="18" x2="46" y2="46" stroke="currentColor" stroke-width="1.2"/>
+      <line x1="18" y1="46" x2="46" y2="18" stroke="currentColor" stroke-width="1.2"/>
+    </g>
+    <circle class="reactor-plasma" cx="32" cy="32" r="6" fill="var(--cyan)"/>
+  </symbol>
+
+</svg>
+
 
 <div class="cfg">
   <header class="hdr cfg-hdr">
@@ -44,6 +239,26 @@
     <label class="cfg-field cfg-field-wide"><span>Pool base URL</span>
       <input type="text" id="prov-pool" placeholder="https://public-pool.io:40557"></label>
     <button class="cfg-btn cfg-save" id="prov-save">SAVE PROVIDERS</button>
+  </div>
+
+  <h2 class="cfg-section">APPEARANCE</h2>
+  <p class="cfg-subnote">Pick the animated mark shown on each miner tile and the fleet total.</p>
+  <div id="cfg-appearance" class="cfg-appearance"></div>
+
+  <h2 class="cfg-section">SCREENSAVER</h2>
+  <p class="cfg-subnote">Burn-in protection for the kiosk display. After the idle time it shows a
+  drifting stats panel or a blank screen. Any touch or key dismisses it.</p>
+  <div class="cfg-saver">
+    <label class="cfg-field"><span>Mode</span>
+      <select id="sv-mode">
+        <option value="off">Off</option>
+        <option value="floating">Floating panel</option>
+        <option value="blank">Blank screen</option>
+      </select>
+    </label>
+    <label class="cfg-field"><span>Idle minutes</span>
+      <input id="sv-min" type="number" min="0" max="240" value="15"></label>
+    <button class="cfg-btn cfg-save" id="sv-save">SAVE SCREENSAVER</button>
   </div>
 
   <h2 class="cfg-section">MONITORING</h2>

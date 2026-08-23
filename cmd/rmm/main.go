@@ -41,8 +41,14 @@ import (
 	"github.com/YorkStack/Raspberry-Mining-Monitor/web"
 )
 
-// version is overridden at build time with -ldflags "-X main.version=...".
-var version = "dev"
+// version is the semantic version of the build. It can be overridden at build
+// time with -ldflags "-X main.version=...". Bump it on every change: the patch
+// digit for small fixes, the minor digit for features or notable changes.
+var version = "0.8.2"
+
+// gitRev is embedded at build time with -ldflags "-X main.gitRev=...". It is for
+// log traceability only and is not shown in the UI.
+var gitRev = "unknown"
 
 func main() {
 	if err := run(); err != nil {
@@ -157,7 +163,8 @@ func run() error {
 		"addr", ln.Addr().String(),
 		"demo", cfg.Demo,
 		"miners", len(cfg.Miners),
-		"version", version)
+		"version", version,
+		"rev", gitRev)
 	if cfg.Dashboard.Settings {
 		log.Info("threshold settings page available from this machine only",
 			"path", "/settings", "overrides", bands.Path())

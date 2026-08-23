@@ -130,6 +130,7 @@ func NewHandler(o Options) http.Handler {
 	mux.Handle("/api/v1/snapshot", getOnly(o.handleSnapshot))
 	mux.Handle("/api/v1/stream", getOnly(o.handleStream))
 	mux.Handle("/api/v1/history", getOnly(o.handleHistory))
+	mux.Handle("/api/v1/version", getOnly(o.handleVersion))
 	mux.Handle("/history", getOnly(o.servePage("history.html")))
 
 	// Operator surfaces. Loopback only, which on the Pi means the kiosk itself.
@@ -266,6 +267,14 @@ type healthSource struct {
 	HasData    bool    `json:"hasData"`
 	AgeSeconds float64 `json:"ageSeconds"`
 	Err        string  `json:"err,omitempty"`
+}
+
+// handleVersion reports the build version. It is public, unlike the operator
+// surfaces: the whole fleet's UI shows the version in its footer.
+func (o Options) handleVersion(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	_ = json.NewEncoder(w).Encode(map[string]string{"version": o.Version})
 }
 
 type healthResponse struct {

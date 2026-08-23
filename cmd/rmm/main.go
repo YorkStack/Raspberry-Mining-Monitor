@@ -117,6 +117,13 @@ func run() error {
 	if err := bands.Load(); err != nil {
 		log.Warn("could not load threshold overrides, using defaults", "err", err)
 	}
+	// Seed the burn-in saver from the static config, unless the operator has
+	// already set it via the admin page.
+	saverMode := "floating"
+	if cfg.Dashboard.ScreensaverMinutes == 0 {
+		saverMode = "off"
+	}
+	bands.SetScreensaverDefault(settings.Screensaver{Mode: saverMode, Minutes: cfg.Dashboard.ScreensaverMinutes})
 
 	handler := httpapi.NewHandler(httpapi.Options{
 		Store:              store,

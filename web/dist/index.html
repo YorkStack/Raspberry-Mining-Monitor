@@ -92,6 +92,73 @@
       <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1"/>
     </g>
   </symbol>
+  <!-- Mac M2: isometric cyber-notebook with a flooding display and a hover. -->
+  <symbol id="i-mac-laptop" viewBox="0 0 64 64">
+    <g class="mac-float" fill="none" stroke="currentColor" stroke-width="1.3">
+      <polygon points="12,14 52,14 46,38 18,38" fill="rgba(0,229,255,0.06)"/>
+      <polygon class="mac-screen" points="16,17 48,17 43,35 21,35" stroke="none" fill="rgba(0,229,255,0.5)"/>
+      <polygon points="18,38 46,38 58,52 6,52" fill="rgba(0,229,255,0.05)"/>
+      <line x1="22" y1="42" x2="42" y2="42" stroke-dasharray="2 2" opacity="0.5"/>
+      <line x1="26" y1="47" x2="38" y2="47" opacity="0.6"/>
+    </g>
+  </symbol>
+
+  <!-- 3D quantum hypercube: filled facets pulsing, inner cube counter-rotating. -->
+  <symbol id="i-quantum-cube" viewBox="0 0 64 64">
+    <g class="qc-outer" stroke="currentColor" stroke-width="1.2">
+      <polygon class="qc-face" points="32,6 54,18 54,40 32,52 10,40 10,18" fill="rgba(0,229,255,0.12)"/>
+    </g>
+    <g class="qc-inner" stroke="currentColor" stroke-width="1">
+      <polygon class="qc-face qc-face-2" points="32,18 44,25 44,38 32,45 20,38 20,25" fill="rgba(0,229,255,0.18)"/>
+    </g>
+    <g stroke="currentColor" stroke-width="0.8" opacity="0.5" fill="none">
+      <path d="M32 6 32 18M54 18 44 25M54 40 44 38M32 52 32 45M10 40 20 38M10 18 20 25"/>
+    </g>
+  </symbol>
+
+  <!-- Tactical hash equalizer: six bars rising in phase. -->
+  <symbol id="i-spectrum-bars" viewBox="0 0 64 64">
+    <g fill="rgba(0,229,255,0.6)">
+      <rect class="sb-bar" x="6"  y="14" width="6" height="40" rx="2"/>
+      <rect class="sb-bar" x="16" y="14" width="6" height="40" rx="2"/>
+      <rect class="sb-bar" x="26" y="14" width="6" height="40" rx="2"/>
+      <rect class="sb-bar" x="36" y="14" width="6" height="40" rx="2"/>
+      <rect class="sb-bar" x="46" y="14" width="6" height="40" rx="2"/>
+      <rect class="sb-bar" x="56" y="14" width="6" height="40" rx="2"/>
+    </g>
+  </symbol>
+
+  <!-- Hex deflector shield: seven hexagons, an energy wave from the centre. -->
+  <symbol id="i-hex-shield" viewBox="0 0 64 64">
+    <g stroke="currentColor" stroke-width="1">
+      <polygon class="hx hx-c"  points="32,24 40,28.6 40,37.4 32,42 24,37.4 24,28.6" fill="rgba(0,229,255,0.15)"/>
+      <polygon class="hx hx-o1" points="32,7  40,11.6 40,20.4 32,25 24,20.4 24,11.6" fill="rgba(0,229,255,0.08)"/>
+      <polygon class="hx hx-o1" points="47,15 55,19.6 55,28.4 47,33 39,28.4 39,19.6" fill="rgba(0,229,255,0.08)"/>
+      <polygon class="hx hx-o1" points="17,15 25,19.6 25,28.4 17,33 9,28.4 9,19.6"  fill="rgba(0,229,255,0.08)"/>
+      <polygon class="hx hx-o2" points="47,33 55,37.6 55,46.4 47,51 39,46.4 39,37.6" fill="rgba(0,229,255,0.06)"/>
+      <polygon class="hx hx-o2" points="17,33 25,37.6 25,46.4 17,51 9,46.4 9,37.6"  fill="rgba(0,229,255,0.06)"/>
+      <polygon class="hx hx-o2" points="32,41 40,45.6 40,54.4 32,59 24,54.4 24,45.6" fill="rgba(0,229,255,0.06)"/>
+    </g>
+  </symbol>
+
+  <!-- Sub-space pulsar orb: breathing core with an expanding ring. -->
+  <symbol id="i-pulsar-beacon" viewBox="0 0 64 64">
+    <circle class="pb-ring" cx="32" cy="32" r="10" fill="none" stroke="var(--cyan)" stroke-width="2"/>
+    <circle cx="32" cy="32" r="26" fill="none" stroke="currentColor" stroke-width="1" opacity="0.35"/>
+    <circle cx="32" cy="32" r="19" fill="none" stroke="currentColor" stroke-width="1" opacity="0.25"/>
+    <circle class="pb-core" cx="32" cy="32" r="9" fill="rgba(0,229,255,0.7)"/>
+  </symbol>
+
+  <!-- Orbital laser drill: charging focus beam that flashes. -->
+  <symbol id="i-mining-drill" viewBox="0 0 64 64">
+    <g stroke="currentColor" stroke-width="1.3" fill="none">
+      <rect x="24" y="8" width="16" height="16" rx="2" fill="rgba(0,229,255,0.1)"/>
+      <path class="md-clampL" d="M24 24 L18 34"/>
+      <path class="md-clampR" d="M40 24 L46 34"/>
+    </g>
+    <polygon class="md-beam" points="26,24 38,24 34,56 30,56" fill="rgba(0,229,255,0.5)" stroke="none"/>
+  </symbol>
+
   <symbol id="i-trend" viewBox="0 0 40 16">
     <path d="M1 14l4-3 3 2 4-6 4 4 4-7 4 5 4-8 4 6 3-4" fill="none"
           stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>

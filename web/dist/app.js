@@ -108,7 +108,7 @@ function minerTile(i, name) {
 
 function totalTile() {
   return `
-    <div class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <svg class="tile-mark"><use href="#i-spectrum-bars"/></svg>
     <div class="tile-head">
       <span class="tile-name"><span class="tile-idx">FLEET TOTAL //</span> SUMMARY</span>
     </div>
@@ -160,6 +160,8 @@ function renderMiner(i, m) {
   tile.classList.toggle("mark-warn", m.online && m.asicTempStatus === "warn");
   tile.classList.toggle("mark-crit", m.online && m.asicTempStatus === "crit");
 
+  const useEl = tile.querySelector(".tile-mark use");
+  if (useEl) useEl.setAttribute("href", "#" + (m.icon || getMinerIcon(m.name)));
   setText(id + "-name", m.name.toUpperCase());
   setClass(id + "-dot", "dot", m.online ? "dot-on" : "dot-off");
   setText(id + "-state", m.online ? "" : m.hasData ? duration(m.ageSeconds).toUpperCase() + " AGO" : "NO DATA");
@@ -185,7 +187,9 @@ function renderMiner(i, m) {
   setText(id + "-foot", foot);
 }
 
-function renderTotals(t) {
+function renderTotals(t, totalIcon) {
+  const tmark = document.querySelector("#mt .tile-mark use");
+  if (tmark) tmark.setAttribute("href", "#" + (totalIcon || "i-spectrum-bars"));
   el("mt").classList.toggle("is-offline", t.minersOnline === 0);
 
   setText("mt-hash", fmt(t.hashrateThs));
@@ -285,12 +289,12 @@ let lastView = null;
 
 function render(v) {
   lastView = v;
-  updateSaverConfig(v.screensaverSeconds);
+  updateSaverConfig(v.screensaverSeconds, v.screensaverMode);
   // Rebuild tiles when the fleet's names change, so each device keeps its mark.
   const sig = v.miners.map((m) => m.name).join("|");
   if (sig !== builtSig) buildTiles(v.miners);
   v.miners.forEach((m, i) => renderMiner(i, m));
-  renderTotals(v.totals);
+  renderTotals(v.totals, v.totalIcon);
   renderPool(v.pool, v.probability);
   renderNetwork(v.network, v.probability);
   renderHeader(v, connected);
@@ -355,9 +359,11 @@ const saver = {
   active: false,
 };
 
-function updateSaverConfig(seconds) {
-  // 0 disables the screensaver entirely.
-  saver.timeoutMs = (seconds && seconds > 0 ? seconds : 0) * 1000;
+function updateSaverConfig(seconds, mode) {
+  saver.mode = mode || "floating";
+  // "off" (or 0 minutes) disables the screensaver entirely.
+  const on = saver.mode !== "off" && seconds && seconds > 0;
+  saver.timeoutMs = on ? seconds * 1000 : 0;
   if (saver.timeoutMs === 0) {
     stopSaver();
     if (saver.idleTimer) { clearTimeout(saver.idleTimer); saver.idleTimer = null; }
@@ -389,9 +395,13 @@ function fillSaver() {
 function startSaver() {
   if (saver.active || saver.timeoutMs === 0) return;
   saver.active = true;
-  fillSaver();
   saver.el.classList.add("on");
-  // Refresh the figures every few seconds while the saver runs.
+  if (saver.mode === "blank") {
+    saver.box.style.display = "none"; // pure black, nothing lit
+    return;
+  }
+  saver.box.style.display = "";
+  fillSaver();
   saver.fillTimer = setInterval(fillSaver, 5000);
   bounce();
 }

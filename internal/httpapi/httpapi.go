@@ -109,8 +109,17 @@ func (o Options) view() dashboard.View {
 		}
 		in.MinerThresholds = perMiner
 		in.DisabledMiners = o.Settings.Disabled()
+		in.MinerIcons = o.Settings.Icons()
+		sv := o.Settings.ScreensaverCfg()
+		in.ScreensaverMode = sv.Mode
+		if sv.Mode == "off" {
+			in.ScreensaverSeconds = 0
+		} else {
+			in.ScreensaverSeconds = sv.Minutes * 60
+		}
+	} else {
+		in.ScreensaverSeconds = o.ScreensaverSeconds
 	}
-	in.ScreensaverSeconds = o.ScreensaverSeconds
 
 	return dashboard.Build(in, o.now())
 }
@@ -127,6 +136,7 @@ func NewHandler(o Options) http.Handler {
 	mux.Handle("/healthz", o.trustedOnly(getOnly(o.handleHealth)))
 	mux.Handle("/settings", o.operatorOnly(getOnly(o.handleSettingsPage)))
 	mux.Handle("/api/v1/settings", o.operatorOnly(getOnly(o.handleSettingsGet)))
+	mux.Handle("/api/v1/settings/screensaver", o.operatorOnly(http.HandlerFunc(o.handleScreensaver)))
 	mux.Handle("/api/v1/settings/", o.operatorOnly(http.HandlerFunc(o.handleSettingsMutate)))
 	mux.Handle("/api/v1/miners", o.minerCfgOnly(http.HandlerFunc(o.handleMiners)))
 	mux.Handle("/api/v1/providers", o.minerCfgOnly(http.HandlerFunc(o.handleProviders)))
@@ -395,18 +405,22 @@ func (o Options) handleSettingsPage(w http.ResponseWriter, r *http.Request) {
 }
 
 type settingsResponse struct {
-	Default   settings.Thresholds            `json:"default"`
-	Miners    []string                       `json:"miners"`
-	Overrides map[string]settings.Thresholds `json:"overrides"`
-	Disabled  map[string]bool                `json:"disabled"`
+	Default     settings.Thresholds            `json:"default"`
+	Miners      []string                       `json:"miners"`
+	Overrides   map[string]settings.Thresholds `json:"overrides"`
+	Disabled    map[string]bool                `json:"disabled"`
+	Icons       map[string]string              `json:"icons"`
+	Screensaver settings.Screensaver           `json:"screensaver"`
 }
 
 func (o Options) handleSettingsGet(w http.ResponseWriter, _ *http.Request) {
 	resp := settingsResponse{
-		Default:   o.Settings.Default(),
-		Miners:    o.minerNames(),
-		Overrides: o.Settings.Overrides(),
-		Disabled:  o.Settings.Disabled(),
+		Default:     o.Settings.Default(),
+		Miners:      o.minerNames(),
+		Overrides:   o.Settings.Overrides(),
+		Disabled:    o.Settings.Disabled(),
+		Icons:       o.Settings.Icons(),
+		Screensaver: o.Settings.ScreensaverCfg(),
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
@@ -423,6 +437,11 @@ func (o Options) handleSettingsMutate(w http.ResponseWriter, r *http.Request) {
 	// Sub-route: /{miner}/enabled toggles monitoring for that miner.
 	if enc, ok := strings.CutSuffix(raw, "/enabled"); ok {
 		o.handleToggleEnabled(w, r, enc)
+		return
+	}
+	// Sub-route: /{miner}/icon sets the animated mark.
+	if enc, ok := strings.CutSuffix(raw, "/icon"); ok {
+		o.handleIcon(w, r, enc)
 		return
 	}
 
@@ -595,4 +614,70 @@ func (o Options) handleProviders(w http.ResponseWriter, r *http.Request) {
 		o.OnConfigChange()
 	}
 	o.writeMiners(w)
+}
+
+// knownIcons is the set of animated marks the UI offers.
+var knownIcons = map[string]bool{
+	"i-chip-matrix": true, "i-reactor-core": true, "i-mac-laptop": true,
+	"i-quantum-cube": true, "i-spectrum-bars": true, "i-hex-shield": true,
+	"i-pulsar-beacon": true, "i-mining-drill": true,
+}
+
+// handleIcon sets a miner's animated mark. An empty id clears the override.
+func (o Options) handleIcon(w http.ResponseWriter, r *http.Request, encName string) {
+	if r.Method != http.MethodPut {
+		w.Header().Set("Allow", "PUT")
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	name, err := url.PathUnescape(encName)
+	// "__total__" is the reserved key for the fleet-total tile's mark.
+	if err != nil || name == "" || (name != "__total__" && !o.knowsMiner(name)) {
+		http.NotFound(w, r)
+		return
+	}
+	var body struct {
+		Icon string `json:"icon"`
+	}
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&body); err != nil {
+		http.Error(w, "invalid body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if body.Icon != "" && !knownIcons[body.Icon] {
+		http.Error(w, "unknown icon", http.StatusBadRequest)
+		return
+	}
+	o.Settings.SetIcon(name, body.Icon)
+	if err := o.Settings.Save(); err != nil {
+		http.Error(w, "could not persist: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	o.handleSettingsGet(w, r)
+}
+
+// handleScreensaver sets the burn-in saver mode and timeout.
+func (o Options) handleScreensaver(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		w.Header().Set("Allow", "PUT")
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var cfg settings.Screensaver
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&cfg); err != nil {
+		http.Error(w, "invalid body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := o.Settings.SetScreensaver(cfg); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := o.Settings.Save(); err != nil {
+		http.Error(w, "could not persist: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	o.handleSettingsGet(w, r)
 }

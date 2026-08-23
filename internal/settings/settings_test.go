@@ -251,3 +251,65 @@ func TestDisabledStatePersists(t *testing.T) {
 		t.Error("an untouched miner should still be enabled after reload")
 	}
 }
+
+func TestIconPersists(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "thresholds.json")
+	a := New(path, defaults())
+	a.SetIcon("NerdOctaxe", "i-quantum-cube")
+	if err := a.Save(); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	b := New(path, defaults())
+	if err := b.Load(); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if b.Icon("NerdOctaxe") != "i-quantum-cube" {
+		t.Errorf("icon = %q, want i-quantum-cube", b.Icon("NerdOctaxe"))
+	}
+	if b.Icon("Gamma 602") != "" {
+		t.Errorf("unset icon should be empty, got %q", b.Icon("Gamma 602"))
+	}
+}
+
+func TestScreensaverPersistsAndValidates(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "thresholds.json")
+	a := New(path, defaults())
+
+	if err := a.SetScreensaver(Screensaver{Mode: "blank", Minutes: 5}); err != nil {
+		t.Fatalf("SetScreensaver: %v", err)
+	}
+	if err := a.SetScreensaver(Screensaver{Mode: "nope", Minutes: 5}); err == nil {
+		t.Error("unknown mode accepted")
+	}
+	if err := a.SetScreensaver(Screensaver{Mode: "off", Minutes: 9999}); err == nil {
+		t.Error("out-of-range minutes accepted")
+	}
+	if err := a.Save(); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	b := New(path, defaults())
+	if err := b.Load(); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got := b.ScreensaverCfg(); got.Mode != "blank" || got.Minutes != 5 {
+		t.Errorf("screensaver = %+v, want blank/5", got)
+	}
+}
+
+func TestScreensaverDefaultDoesNotOverrideLoaded(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "thresholds.json")
+	a := New(path, defaults())
+	_ = a.SetScreensaver(Screensaver{Mode: "blank", Minutes: 3})
+	_ = a.Save()
+
+	b := New(path, defaults())
+	_ = b.Load()
+	b.SetScreensaverDefault(Screensaver{Mode: "floating", Minutes: 15})
+	if got := b.ScreensaverCfg(); got.Mode != "blank" {
+		t.Errorf("default overrode a loaded value: %+v", got)
+	}
+}

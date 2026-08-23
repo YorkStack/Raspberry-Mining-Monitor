@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1600, initial-scale=1">
+<title>Raspberry Mining Monitor</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23071019'/%3E%3Cpath d='M5 3h4a2.5 2.5 0 0 1 0 5H5zM5 8h4.5a2.5 2.5 0 0 1 0 5H5zM7 1.5v2M9.5 1.5v2M7 12.5v2M9.5 12.5v2' stroke='%2300E5FF' stroke-width='1.3' fill='none'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- Icon sprite. Everything ships inline: no external asset, no CDN. -->
+<svg class="sprite" aria-hidden="true">
+  <symbol id="i-thermo" viewBox="0 0 24 24">
+    <path d="M12 3.5a2.2 2.2 0 0 1 2.2 2.2v7.6a4.4 4.4 0 1 1-4.4 0V5.7A2.2 2.2 0 0 1 12 3.5z"
+          fill="none" stroke="currentColor" stroke-width="1.6"/>
+    <circle cx="12" cy="17.2" r="1.8" fill="currentColor"/>
+  </symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24">
+    <path d="M13.5 2 5 13.2h5.4L9.8 22l8.7-11.4h-5.4z" fill="currentColor"/>
+  </symbol>
+  <symbol id="i-eff" viewBox="0 0 24 24">
+    <path d="M3 18a9 9 0 0 1 18 0" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    <path d="M12 18 16.5 9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    <circle cx="12" cy="18" r="1.6" fill="currentColor"/>
+  </symbol>
+  <symbol id="i-fan" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.6">
+      <circle cx="12" cy="12" r="2.1"/>
+      <path d="M12 9.9c0-3 .6-5.4 2.7-5.4 1.7 0 2.3 2.4.6 4.1-1 1-2.3 1.3-3.3 1.3z"/>
+      <path d="M14.1 12c3 0 5.4.6 5.4 2.7 0 1.7-2.4 2.3-4.1.6-1-1-1.3-2.3-1.3-3.3z"/>
+      <path d="M12 14.1c0 3-.6 5.4-2.7 5.4-1.7 0-2.3-2.4-.6-4.1 1-1 2.3-1.3 3.3-1.3z"/>
+      <path d="M9.9 12c-3 0-5.4-.6-5.4-2.7 0-1.7 2.4-2.3 4.1-.6 1 1 1.3 2.3 1.3 3.3z"/>
+    </g>
+  </symbol>
+  <symbol id="i-radar" viewBox="0 0 48 48">
+    <g fill="none" stroke="currentColor">
+      <circle cx="24" cy="24" r="19" stroke-width="1.1" opacity=".55"/>
+      <circle cx="24" cy="24" r="12" stroke-width="1" opacity=".4"/>
+      <circle cx="24" cy="24" r="5.5" stroke-width="1" opacity=".7"/>
+      <path d="M24 5v6M24 37v6M5 24h6M37 24h6" stroke-width="1.2" opacity=".6"/>
+    </g>
+    <circle cx="24" cy="24" r="2.4" fill="currentColor"/>
+  </symbol>
+  <symbol id="i-cube" viewBox="0 0 48 48">
+    <g fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round">
+      <path d="M24 5 41 14.5v19L24 43 7 33.5v-19z"/>
+      <path d="M24 5v38M7 14.5 41 33.5M41 14.5 7 33.5" opacity=".38"/>
+      <path d="M24 15.5 33 20.5v10L24 35.5 15 30.5v-10z" opacity=".8"/>
+    </g>
+  </symbol>
+  <symbol id="i-asteroid" viewBox="0 0 120 120">
+    <!-- HUD reticle -->
+    <g fill="none" stroke="var(--cyan)" stroke-width="1.4" opacity="0.85">
+      <path d="M14 28V14h14M106 28V14H92M14 92v14h14M106 92v14H92"/>
+      <circle cx="60" cy="60" r="54" stroke-dasharray="4 6" opacity="0.45"/>
+    </g>
+    <!-- Glowing 3D asteroid with a filled body -->
+    <g stroke="var(--cyan)" stroke-width="1.6" fill="rgba(0, 229, 255, 0.06)">
+      <polygon points="60,18 86,28 100,52 92,80 68,100 36,94 20,70 28,38"/>
+    </g>
+    <!-- Inner wireframe edges -->
+    <g stroke="var(--cyan)" stroke-width="1.2" opacity="0.75" fill="none">
+      <path d="M60,18 L52,42 L28,38 M86,28 L68,48 L52,42 M100,52 L68,48 M92,80 L76,68 L68,48 M68,100 L76,68 M36,94 L48,70 L76,68 M20,70 L48,70 M28,38 L48,70 M52,42 L48,70"/>
+    </g>
+    <!-- Glowing ore nodes / laser spots -->
+    <circle cx="68" cy="48" r="7" fill="var(--gold)" opacity="0.25"/>
+    <circle cx="68" cy="48" r="3.2" fill="var(--gold)"/>
+    <circle cx="48" cy="70" r="7" fill="var(--gold)" opacity="0.25"/>
+    <circle cx="48" cy="70" r="3" fill="var(--gold)"/>
+    <circle cx="76" cy="68" r="6" fill="var(--cyan)" opacity="0.3"/>
+    <circle cx="76" cy="68" r="2.8" fill="#ffffff"/>
+  </symbol>
+  <!-- Mac M2: a scrolling line chart (waveform loops seamlessly by 52px). -->
+  <symbol id="i-linechart" viewBox="0 0 64 64">
+    <defs><clipPath id="lc-clip"><rect x="6" y="10" width="52" height="44"/></clipPath></defs>
+    <rect x="6" y="10" width="52" height="44" rx="2" fill="none" stroke="currentColor" stroke-width="1.1" opacity="0.5"/>
+    <line x1="6" y1="32" x2="58" y2="32" stroke="currentColor" stroke-width="0.6" opacity="0.25"/>
+    <line x1="6" y1="21" x2="58" y2="21" stroke="currentColor" stroke-width="0.5" opacity="0.15"/>
+    <line x1="6" y1="43" x2="58" y2="43" stroke="currentColor" stroke-width="0.5" opacity="0.15"/>
+    <g clip-path="url(#lc-clip)">
+      <g class="lc-scroll">
+        <polyline class="lc-line" fill="none" stroke="var(--cyan)" stroke-width="1.6"
+          points="6,38 19,22 32,42 45,26 58,38 71,22 84,42 97,26 110,38"/>
+      </g>
+    </g>
+  </symbol>
+
+  <symbol id="i-gear" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.7">
+      <circle cx="12" cy="12" r="3.4"/>
+      <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1"/>
+    </g>
+  </symbol>
+  <symbol id="i-trend" viewBox="0 0 40 16">
+    <path d="M1 14l4-3 3 2 4-6 4 4 4-7 4 5 4-8 4 6 3-4" fill="none"
+          stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
+  </symbol>
+
+  <!-- Device-specific miner marks, animated via CSS. -->
+
+  <!-- NerdOctaxe: 2x4 ASIC chip matrix with a sweeping laser scan line. -->
+  <symbol id="i-chip-matrix" viewBox="0 0 64 64">
+    <g stroke="currentColor" fill="none" stroke-width="1.2">
+      <rect class="asic-core" x="6"  y="10" width="10" height="18" rx="2"/>
+      <rect class="asic-core" x="20" y="10" width="10" height="18" rx="2"/>
+      <rect class="asic-core" x="34" y="10" width="10" height="18" rx="2"/>
+      <rect class="asic-core" x="48" y="10" width="10" height="18" rx="2"/>
+      <rect class="asic-core" x="6"  y="34" width="10" height="18" rx="2"/>
+      <rect class="asic-core" x="20" y="34" width="10" height="18" rx="2"/>
+      <rect class="asic-core" x="34" y="34" width="10" height="18" rx="2"/>
+      <rect class="asic-core" x="48" y="34" width="10" height="18" rx="2"/>
+      <line class="laser-scanner" x1="4" y1="8" x2="4" y2="54" stroke="var(--cyan)" stroke-width="2"/>
+    </g>
+  </symbol>
+
+  <!-- Gamma 602: single-core plasma reactor with a spinning turbine. -->
+  <symbol id="i-reactor-core" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="28" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="6 4" opacity="0.6"/>
+    <!-- Six pie wedges that light in sequence, a glow chasing around the wheel. -->
+    <g class="reactor-wedges" fill="var(--cyan)" stroke="none">
+      <path class="reactor-wedge" d="M32 32 L52 32 A20 20 0 0 1 42 49.32 Z"/>
+      <path class="reactor-wedge" d="M32 32 L42 49.32 A20 20 0 0 1 22 49.32 Z"/>
+      <path class="reactor-wedge" d="M32 32 L22 49.32 A20 20 0 0 1 12 32 Z"/>
+      <path class="reactor-wedge" d="M32 32 L12 32 A20 20 0 0 1 22 14.68 Z"/>
+      <path class="reactor-wedge" d="M32 32 L22 14.68 A20 20 0 0 1 42 14.68 Z"/>
+      <path class="reactor-wedge" d="M32 32 L42 14.68 A20 20 0 0 1 52 32 Z"/>
+    </g>
+    <g class="reactor-rotor">
+      <circle cx="32" cy="32" r="20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="14 8"/>
+      <line x1="32" y1="12" x2="32" y2="52" stroke="currentColor" stroke-width="1.2"/>
+      <line x1="12" y1="32" x2="52" y2="32" stroke="currentColor" stroke-width="1.2"/>
+      <line x1="18" y1="18" x2="46" y2="46" stroke="currentColor" stroke-width="1.2"/>
+      <line x1="18" y1="46" x2="46" y2="18" stroke="currentColor" stroke-width="1.2"/>
+    </g>
+    <circle class="reactor-plasma" cx="32" cy="32" r="6" fill="var(--cyan)"/>
+  </symbol>
+
+</svg>
+
+<div id="app" class="deck">
+
+  <header class="hdr">
+    <div class="hdr-title">RASPBERRY MINING MONITOR</div>
+    <div class="hdr-right">
+      <span class="hchip"><em>BLOCK</em><b id="hdr-block">—</b></span>
+      <span class="hchip"><em>NET</em><b id="hdr-source">—</b></span>
+      <a class="hchip hchip-btn" href="/settings"><svg class="gear"><use href="#i-gear"/></svg><b>CONFIG</b></a>
+      <span class="hchip hchip-state" id="hdr-state"><i class="dot dot-off" id="hdr-dot"></i><b id="hdr-status">CONNECTING</b></span>
+    </div>
+  </header>
+
+  <section class="tiles" id="tiles"></section>
+
+  <section class="panel panel-solo" id="panel-solo">
+    <div class="phead">
+      <h2>SOLO MINING FLEET TELEMETRY</h2>
+      <span class="ptag" id="pool-provider">—</span>
+      <span class="page" id="pool-age"></span>
+    </div>
+    <div class="pbody solo-grid">
+      <dl class="rows">
+        <div class="row"><dt><span>Best Share</span><svg class="ri gold"><use href="#i-bolt"/></svg></dt><dd id="pool-best">—</dd></div>
+        <div class="row"><dt><span>Best Ever</span></dt><dd id="pool-bestever">—</dd></div>
+        <div class="row"><dt><span>Accepted / Rejected</span><span class="sub" id="pool-rej-note"></span></dt><dd id="pool-shares">—</dd></div>
+        <div class="row"><dt><span>Active Workers</span><svg class="ri"><use href="#i-fan"/></svg></dt><dd id="pool-workers">—</dd></div>
+        <div class="row"><dt><span>Last Share</span><span class="sub" id="pool-share-note"></span></dt><dd id="pool-lastshare">—</dd></div>
+      </dl>
+
+      <dl class="rows">
+        <div class="row"><dt><span>P(block) 24h</span></dt><dd id="prob-day">—</dd></div>
+        <div class="row"><dt><span>P(block) 7d</span></dt><dd id="prob-week">—</dd></div>
+        <div class="row"><dt><span>P(block) 30d</span></dt><dd id="prob-month">—</dd></div>
+        <div class="row"><dt><span>P(block) 1y</span></dt><dd id="prob-year">—</dd></div>
+        <div class="row"><dt><span>Median Time to Block</span></dt><dd id="prob-median">—</dd></div>
+      </dl>
+
+      <div class="holo">
+        <svg class="holo-svg"><use href="#i-asteroid"/></svg>
+        <span class="holo-cap">SHARE SPACE</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel panel-net" id="panel-net">
+    <div class="phead">
+      <h2>BITCOIN NETWORK CONSENSUS</h2>
+      <span class="page" id="net-age"></span>
+    </div>
+    <div class="pbody">
+      <dl class="rows">
+        <div class="row"><dt><span>Difficulty</span><svg class="ri wide"><use href="#i-trend"/></svg></dt><dd id="net-diff">—</dd></div>
+        <div class="row"><dt><span>Network Hashrate</span></dt><dd id="net-hash">—</dd></div>
+        <div class="row"><dt><span>Last Block</span></dt><dd id="net-lastblock">—</dd></div>
+        <div class="row"><dt><span>BTC Price</span></dt><dd id="net-price" class="gold">—</dd></div>
+        <div class="row"><dt><span>Block Subsidy</span></dt><dd id="net-subsidy" class="gold">—</dd></div>
+        <div class="row"><dt><span>Difficulty Retarget</span></dt><dd id="net-retarget">—</dd></div>
+        <div class="row"><dt><span>Fleet Network Share</span></dt><dd id="net-share">—</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <footer class="ftr">
+    <div id="foot-ages">SYS: WAITING FOR DATA</div>
+    <div class="ftr-note">
+      <a class="ftr-cfg is-hidden" id="ftr-cfg" href="/settings">THRESHOLDS</a>
+      <span>BLOCK DISCOVERY IS A MEMORYLESS POISSON PROCESS</span>
+    </div>
+  </footer>
+
+</div>
+
+<div id="saver">
+  <div class="saver-box" id="saver-box">
+    <div class="saver-hd">FLEET TOTAL</div>
+    <div class="saver-big"><span id="sv-hash">—</span><span class="u">TH/s</span></div>
+    <div class="saver-rows">
+      <span class="k">Power</span><span class="v" id="sv-power">—</span>
+      <span class="k">Efficiency</span><span class="v" id="sv-eff">—</span>
+      <span class="k">Miners</span><span class="v" id="sv-miners">—</span>
+      <span class="k">BTC Price</span><span class="v" id="sv-price">—</span>
+      <span class="k">Block</span><span class="v" id="sv-block">—</span>
+      <span class="k">Difficulty</span><span class="v" id="sv-diff">—</span>
+      <span class="k">Net Hashrate</span><span class="v" id="sv-nethash">—</span>
+    </div>
+  </div>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

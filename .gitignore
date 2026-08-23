@@ -1,0 +1,26 @@
+# Local configuration and data (never commit)
+config.yaml
+config.yml
+*.db
+*.db-wal
+*.db-shm
+data/
+
+# Build output
+/rmm
+/rmm-linux-arm64
+/dist/
+# NOTE: web/dist is NOT ignored. In Phase 1 the frontend is hand-written there
+# and embedded via go:embed, so it is source and must be committed.
+
+# macOS
+.DS_Store
+
+# Local deploy target (host, user, paths)
+deploy/deploy.env
+
+# Local editor / harness config
+.claude/
+
+# Runtime threshold overrides (may be written to cwd during local dev)
+thresholds.json

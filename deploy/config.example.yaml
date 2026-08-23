@@ -1,0 +1,62 @@
+# Raspberry Mining Monitor configuration.
+#
+# Copy to config.yaml and fill in your own values. config.yaml is gitignored:
+# it is the only place addresses belong, and nothing is hard-coded in source.
+
+miners:
+  - name: NerdOctaxe
+    host: 192.168.1.51          # IP or hostname of the miner's AxeOS web UI
+    type: axeos
+    payout_address: bc1qYOUR_NERDOCTAXE_ADDRESS
+    interval: 2s
+    timeout: 2s
+    # Both AxeOS variants trigger thermal protection at 70 C, so red sits on
+    # that line and amber gives six degrees of warning first. A NerdOctaxe
+    # idling at 62 to 63 C stays green. Adjustable at runtime on /settings.
+    warn_temp_c: 64          # amber at or above this
+    crit_temp_c: 70          # red at or above this
+
+  - name: Gamma 602
+    host: 192.168.1.52
+    type: axeos
+    payout_address: bc1qYOUR_GAMMA_ADDRESS
+    interval: 2s
+    timeout: 2s
+
+# Bitcoin network data. provider: public | core | demo
+# base_url can point at a self-hosted mempool instance or a mirror.
+bitcoin:
+  provider: public
+  base_url: https://mempool.space
+  interval: 30s
+  timeout: 8s
+
+# Solo pool. provider: publicpool | ckpool | none | demo
+# Note the non-standard port on the hosted Public Pool API.
+pool:
+  provider: publicpool
+  base_url: https://public-pool.io:40557
+  interval: 60s
+  timeout: 8s
+
+dashboard:
+  bind: 0.0.0.0                 # set to 127.0.0.1 to keep it off the LAN
+  port: 8080
+  admin_bind: 127.0.0.1         # health endpoint stays on loopback
+
+  # /settings and /healthz answer only to requests from this machine, which on
+  # the Pi means the kiosk itself. Set to false if this service is ever placed
+  # behind a reverse proxy: X-Forwarded-For is deliberately not trusted, so
+  # every proxied request would otherwise look local.
+  settings: true
+  settings_path: /var/lib/rmm/thresholds.json
+
+  # Burn-in screensaver: after this many idle minutes the kiosk shows a single
+  # floating panel (fleet total + key network figures) drifting across a black
+  # screen. 0 disables it.
+  screensaver_minutes: 15
+
+history:
+  enabled: true
+  path: /var/lib/rmm/history.db
+  retention_days: 7

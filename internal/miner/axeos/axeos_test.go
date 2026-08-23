@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -285,5 +286,61 @@ func TestContextCancellationIsHonoured(t *testing.T) {
 func TestNameIsReported(t *testing.T) {
 	if got := newClient("NerdOctaxe", "http://x").Name(); got != "NerdOctaxe" {
 		t.Errorf("Name = %q", got)
+	}
+}
+
+func TestBearerTokenSentWhenConfigured(t *testing.T) {
+	info := fixture(t, "upstream_info.json")
+	var gotAuth string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/system/info", func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		_, _ = w.Write(info)
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	c := New(Config{Name: "Mac M2", BaseURL: srv.URL, Timeout: 2 * time.Second, Token: "secret-token"})
+	if _, err := c.Fetch(context.Background()); err != nil {
+		t.Fatalf("Fetch: %v", err)
+	}
+	if gotAuth != "Bearer secret-token" {
+		t.Errorf("Authorization = %q, want %q", gotAuth, "Bearer secret-token")
+	}
+}
+
+func TestNoAuthorizationHeaderWithoutToken(t *testing.T) {
+	info := fixture(t, "upstream_info.json")
+	var sawAuth bool
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/system/info", func(w http.ResponseWriter, r *http.Request) {
+		_, sawAuth = r.Header["Authorization"]
+		_, _ = w.Write(info)
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	if _, err := newClient("plain", srv.URL).Fetch(context.Background()); err != nil {
+		t.Fatalf("Fetch: %v", err)
+	}
+	if sawAuth {
+		t.Error("Authorization header sent for a miner with no token")
+	}
+}
+
+func TestUnauthorizedIsAClearError(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/system/info", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	_, err := New(Config{Name: "Mac M2", BaseURL: srv.URL, Timeout: 2 * time.Second, Token: "wrong"}).Fetch(context.Background())
+	if err == nil {
+		t.Fatal("want error on 401")
+	}
+	if !strings.Contains(err.Error(), "unauthorized") {
+		t.Errorf("error = %q, want it to mention unauthorized", err)
 	}
 }

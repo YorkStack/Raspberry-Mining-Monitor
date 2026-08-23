@@ -46,7 +46,7 @@ import (
 // version is the semantic version of the build. It can be overridden at build
 // time with -ldflags "-X main.version=...". Bump it on every change: the patch
 // digit for small fixes, the minor digit for features or notable changes.
-var version = "0.9.0"
+var version = "0.10.0"
 
 // gitRev is embedded at build time with -ldflags "-X main.gitRev=...". It is for
 // log traceability only and is not shown in the UI.
@@ -342,6 +342,7 @@ func seedSpecs(cfg config.Config) []minercfg.Spec {
 			Host:          m.Host,
 			PayoutAddress: m.PayoutAddress,
 			PoolProvider:  m.PoolProvider,
+			Token:         m.Token,
 			Interval:      m.Interval,
 			Timeout:       m.Timeout,
 			NominalTHs:    m.NominalTHs,
@@ -385,6 +386,7 @@ func factories(cfg config.Config, clock func() time.Time) collect.Factories {
 					Name:    spec.Name,
 					BaseURL: minerBaseURL(spec.Host),
 					Timeout: spec.Timeout,
+					Token:   spec.Token,
 				})
 			}
 		},

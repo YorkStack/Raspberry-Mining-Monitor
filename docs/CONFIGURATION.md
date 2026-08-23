@@ -35,7 +35,16 @@ miners:
 `host` is the miner's own web UI address, reachable from the Pi. `type: axeos`
 covers both upstream Bitaxe and NerdQAxe firmware; the collector detects which
 one automatically. An optional `pool_provider` (`publicpool` | `ckpool` |
-`braiins` | `generic` | `auto`) overrides pool detection for that one miner. `warn_temp_c` / `crit_temp_c` are optional and default to
+`braiins` | `generic` | `auto`) overrides pool detection for that one miner.
+
+An optional `token` is sent as `Authorization: Bearer <token>` on every request
+to that miner. This is for miners behind a monitoring security contract, such as
+the Mac metal miner, which returns `401` without it. The token stays in
+`config.yaml` / `miners.json` and is never returned by the admin API or shown in
+the UI; editing a miner on the settings page preserves its token rather than
+wiping it. Because the current miner exporter is plain HTTP, keep such a miner on
+a trusted management network and treat the token as visible to other local users
+who can read process arguments. `warn_temp_c` / `crit_temp_c` are optional and default to
 64 / 70 °C. Both AxeOS variants trip their own thermal protection at 70 °C, so
 red sits on that line and amber gives a few degrees of warning first.
 

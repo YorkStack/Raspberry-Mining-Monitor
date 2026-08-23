@@ -1190,3 +1190,29 @@ code { font-family: var(--num); color: #a8d5e5; }
 }
 .range-sel:hover { border-color: var(--cyan); }
 .tile-link { cursor: pointer; }
+
+/* ---- Solo Block Odds detail (history page) ---- */
+.odds-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 18px; }
+.odds-cell {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 12px 14px; border: 1px solid rgba(30, 136, 168, 0.4); border-radius: 10px;
+  background: linear-gradient(180deg, rgba(18, 41, 61, 0.6), rgba(9, 22, 36, 0.6));
+}
+.odds-cell .ol { font-family: var(--ui); font-size: 11px; letter-spacing: 0.1em; color: var(--label); }
+.odds-cell .ov { font-family: var(--num); font-size: 19px; color: var(--cyan); text-shadow: 0 0 10px rgba(0, 229, 255, 0.35); }
+.odds-cell .op { font-family: var(--num); font-size: 12px; color: var(--faint); }
+.odds-context { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 4px 28px; margin-bottom: 8px; }
+.odds-context .row { display: flex; justify-content: space-between; gap: 16px; padding: 7px 0; border-bottom: 1px solid rgba(30, 136, 168, 0.15); }
+.odds-context dt { color: var(--label); font-size: 12px; letter-spacing: 0.04em; }
+.odds-context dd { font-family: var(--num); color: var(--val); }
+.odds-context #od-interval { cursor: help; }
+.whatif { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.whatif-in { display: inline-flex; align-items: center; gap: 8px; color: var(--label); font-size: 12px; letter-spacing: 0.06em; }
+.whatif-in input {
+  width: 150px; height: 40px; padding: 0 12px; font-family: var(--num); font-size: 15px; color: var(--val);
+  background: linear-gradient(180deg, rgba(18, 41, 61, 0.95), rgba(9, 22, 36, 0.95));
+  border: 1px solid rgba(30, 136, 168, 0.6); border-radius: 8px;
+}
+.whatif-in input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 12px rgba(0, 229, 255, 0.2); }
+.whatif-out { font-family: var(--num); color: var(--label); }
+.whatif-out b { color: var(--cyan); }

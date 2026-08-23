@@ -18,8 +18,9 @@ The dashboard, running in demo mode at 1600 × 600 (Waveshare 9.3"):
 ![Dashboard](docs/screenshots/dashboard.png)
 
 The admin / config page — reachable from the local network — where you can add,
-edit and remove miners, set the data-provider URLs, toggle monitoring per miner,
-and tune temperature thresholds:
+edit and remove miners, set the data-provider URLs, pick an animated mark per
+miner from eight designs, choose the screensaver mode, toggle monitoring, and
+tune temperature thresholds:
 
 ![Admin / Config](docs/screenshots/config.png)
 

@@ -64,15 +64,33 @@ type file struct {
 	// Disabled lists miners the operator has switched off in monitoring.
 	// Absence means enabled, so a fresh install monitors everything.
 	Disabled []string `json:"disabled,omitempty"`
+	// Icons maps a miner name to its chosen animated mark. Absence means the
+	// dashboard auto-picks one from the miner name.
+	Icons map[string]string `json:"icons,omitempty"`
+	// Screensaver is the burn-in saver mode and idle timeout.
+	Screensaver *Screensaver `json:"screensaver,omitempty"`
 }
+
+// Screensaver is the burn-in protection setting.
+type Screensaver struct {
+	// Mode is "off", "floating" (a drifting stats panel) or "blank".
+	Mode    string `json:"mode"`
+	Minutes int    `json:"minutes"`
+}
+
+// ScreensaverModes are the accepted modes.
+var ScreensaverModes = map[string]bool{"off": true, "floating": true, "blank": true}
 
 // Store holds the fleet default plus per-miner overrides.
 type Store struct {
-	mu       sync.RWMutex
-	path     string
-	def      Thresholds
-	perMiner map[string]Thresholds
-	disabled map[string]bool
+	mu            sync.RWMutex
+	path          string
+	def           Thresholds
+	perMiner      map[string]Thresholds
+	disabled      map[string]bool
+	icons         map[string]string
+	saver         Screensaver
+	saverFromFile bool
 }
 
 // New creates a store backed by path, falling back to def for any miner
@@ -83,6 +101,8 @@ func New(path string, def Thresholds) *Store {
 		def:      def,
 		perMiner: make(map[string]Thresholds),
 		disabled: make(map[string]bool),
+		icons:    make(map[string]string),
+		saver:    Screensaver{Mode: "floating", Minutes: 15},
 	}
 }
 
@@ -171,6 +191,71 @@ func (s *Store) Disabled() map[string]bool {
 	return out
 }
 
+// Icon returns a miner's chosen mark, or "" to let the UI auto-pick.
+func (s *Store) Icon(miner string) string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.icons[miner]
+}
+
+// SetIcon records a miner's chosen mark; an empty id clears the override.
+func (s *Store) SetIcon(miner, id string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if id == "" {
+		delete(s.icons, miner)
+	} else {
+		s.icons[miner] = id
+	}
+}
+
+// Icons returns a copy of the per-miner mark choices.
+func (s *Store) Icons() map[string]string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make(map[string]string, len(s.icons))
+	for k, v := range s.icons {
+		out[k] = v
+	}
+	return out
+}
+
+// ScreensaverCfg returns the current burn-in saver setting.
+func (s *Store) ScreensaverCfg() Screensaver {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.saver
+}
+
+// SetScreensaver validates and stores the burn-in saver setting.
+func (s *Store) SetScreensaver(cfg Screensaver) error {
+	if !ScreensaverModes[cfg.Mode] {
+		return fmt.Errorf("settings: unknown screensaver mode %q", cfg.Mode)
+	}
+	if cfg.Minutes < 0 || cfg.Minutes > 240 {
+		return fmt.Errorf("settings: screensaver minutes %d out of range 0..240", cfg.Minutes)
+	}
+	s.mu.Lock()
+	s.saver = cfg
+	s.mu.Unlock()
+	return nil
+}
+
+// SetScreensaverDefault sets the initial saver config without persisting, used
+// to seed from the static config on startup.
+func (s *Store) SetScreensaverDefault(cfg Screensaver) {
+	if !ScreensaverModes[cfg.Mode] {
+		return
+	}
+	s.mu.Lock()
+	if _, loaded := s.saverLoaded(); !loaded {
+		s.saver = cfg
+	}
+	s.mu.Unlock()
+}
+
+func (s *Store) saverLoaded() (Screensaver, bool) { return s.saver, s.saverFromFile }
+
 // Load reads the overrides file. A missing file is the normal first-run state
 // and is not an error. Anything unreadable or invalid is reported, and the
 // in-memory defaults are left usable so a bad file cannot blank the dashboard.
@@ -206,6 +291,14 @@ func (s *Store) Load() error {
 	for _, name := range f.Disabled {
 		s.disabled[name] = true
 	}
+	s.icons = make(map[string]string, len(f.Icons))
+	for k, v := range f.Icons {
+		s.icons[k] = v
+	}
+	if f.Screensaver != nil && ScreensaverModes[f.Screensaver.Mode] {
+		s.saver = *f.Screensaver
+		s.saverFromFile = true
+	}
 	return nil
 }
 
@@ -220,6 +313,14 @@ func (s *Store) Save() error {
 	for k := range s.disabled {
 		f.Disabled = append(f.Disabled, k)
 	}
+	if len(s.icons) > 0 {
+		f.Icons = make(map[string]string, len(s.icons))
+		for k, v := range s.icons {
+			f.Icons[k] = v
+		}
+	}
+	sv := s.saver
+	f.Screensaver = &sv
 	s.mu.RUnlock()
 
 	data, err := json.MarshalIndent(f, "", "  ")

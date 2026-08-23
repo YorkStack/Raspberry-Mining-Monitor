@@ -48,6 +48,10 @@ type Input struct {
 
 	// ScreensaverSeconds is the idle time before the burn-in saver. 0 disables.
 	ScreensaverSeconds int
+	// ScreensaverMode is "off", "floating" or "blank".
+	ScreensaverMode string
+	// MinerIcons maps a miner name to its chosen animated mark.
+	MinerIcons map[string]string
 }
 
 // thresholdsFor returns the band that applies to one miner.
@@ -69,6 +73,10 @@ type View struct {
 
 	// ScreensaverSeconds tells the UI when to show the burn-in saver.
 	ScreensaverSeconds int `json:"screensaverSeconds"`
+	// ScreensaverMode is "off", "floating" or "blank".
+	ScreensaverMode string `json:"screensaverMode"`
+	// TotalIcon is the chosen animated mark for the fleet-total tile.
+	TotalIcon string `json:"totalIcon,omitempty"`
 }
 
 // MinerView is one tile on the dashboard.
@@ -77,6 +85,7 @@ type MinerView struct {
 	Model    string `json:"model,omitempty"`
 	Firmware string `json:"firmware,omitempty"`
 	Variant  string `json:"variant,omitempty"`
+	Icon     string `json:"icon,omitempty"`
 
 	Online     bool    `json:"online"`
 	Stale      bool    `json:"stale"`
@@ -222,6 +231,8 @@ func Build(in Input, now time.Time) View {
 		GeneratedAt:        now,
 		Miners:             make([]MinerView, 0, len(in.Miners)),
 		ScreensaverSeconds: in.ScreensaverSeconds,
+		ScreensaverMode:    in.ScreensaverMode,
+		TotalIcon:          in.MinerIcons["__total__"],
 	}
 
 	agg := make([]aggregate.MinerInput, 0, len(in.Miners))
@@ -237,6 +248,7 @@ func Build(in Input, now time.Time) View {
 			Model:           m.Model,
 			Firmware:        m.Firmware,
 			Variant:         string(m.Variant),
+			Icon:            in.MinerIcons[m.Name],
 			Online:          m.OK,
 			Stale:           m.Stale(now, in.MinerInterval),
 			HasData:         m.HasData(),

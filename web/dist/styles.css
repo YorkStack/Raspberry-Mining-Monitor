@@ -969,3 +969,107 @@ code { font-family: var(--num); color: #a8d5e5; }
 .chart-unit { color: var(--label); font-weight: 400; font-size: 11px; }
 .chart-last { float: right; font-family: var(--num); color: var(--val); letter-spacing: 0.04em; }
 .chart { width: 100%; height: 200px; display: block; }
+
+/* ---- selectable animated marks (additional) ---- */
+
+/* Mac notebook: display floods bright, whole terminal hovers. */
+.mac-float { transform-box: fill-box; transform-origin: center; animation: mac-hover 4s ease-in-out infinite alternate; }
+.mac-screen { animation: mac-flood 2.6s ease-in-out infinite; }
+@keyframes mac-hover { 0% { transform: translateY(0); } 100% { transform: translateY(-3px); } }
+@keyframes mac-flood {
+  0%, 100% { fill: rgba(0,229,255,0.12); }
+  50%      { fill: rgba(0,229,255,0.7); filter: drop-shadow(0 0 6px var(--cyan)); }
+}
+
+/* Quantum cube: facets pulse, inner/outer counter-rotate. */
+.qc-outer { transform-box: fill-box; transform-origin: center; animation: qc-spin 18s linear infinite; }
+.qc-inner { transform-box: fill-box; transform-origin: center; animation: qc-spin 12s linear infinite reverse; }
+.qc-face { animation: qc-pulse 2.4s ease-in-out infinite; }
+.qc-face-2 { animation-delay: 1.2s; }
+@keyframes qc-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes qc-pulse {
+  0%, 100% { fill: rgba(0,229,255,0.1); }
+  50%      { fill: rgba(0,229,255,0.8); filter: drop-shadow(0 0 8px var(--cyan)); }
+}
+
+/* Spectrum bars: rise in phase with glowing tips. */
+.sb-bar { transform-box: fill-box; transform-origin: bottom; animation: sb-rise 1.4s ease-in-out infinite alternate; }
+.sb-bar:nth-child(2) { animation-delay: 0.2s; }
+.sb-bar:nth-child(3) { animation-delay: 0.5s; }
+.sb-bar:nth-child(4) { animation-delay: 0.1s; }
+.sb-bar:nth-child(5) { animation-delay: 0.4s; }
+.sb-bar:nth-child(6) { animation-delay: 0.25s; }
+@keyframes sb-rise {
+  0%   { transform: scaleY(0.25); fill: rgba(0,229,255,0.3); }
+  100% { transform: scaleY(1);    fill: var(--cyan); filter: drop-shadow(0 0 6px var(--cyan)); }
+}
+
+/* Hex shield: wave from the centre outward. */
+.hx { animation: hx-glow 2.4s ease-in-out infinite; }
+.hx-c  { animation-delay: 0s; }
+.hx-o1 { animation-delay: 0.5s; }
+.hx-o2 { animation-delay: 1s; }
+@keyframes hx-glow {
+  0%, 100% { fill: rgba(0,229,255,0.05); }
+  40%      { fill: rgba(0,229,255,0.8); filter: drop-shadow(0 0 8px var(--cyan)); }
+}
+
+/* Pulsar: core breathes, a ring expands and fades. */
+.pb-core { transform-box: fill-box; transform-origin: center; animation: pb-breathe 1.8s ease-in-out infinite; }
+.pb-ring { transform-box: fill-box; transform-origin: center; animation: pb-expand 2.4s ease-out infinite; }
+@keyframes pb-breathe {
+  0%, 100% { transform: scale(0.8); fill: rgba(0,229,255,0.4); }
+  50%      { transform: scale(1.15); fill: rgba(0,229,255,0.9); filter: drop-shadow(0 0 10px var(--cyan)); }
+}
+@keyframes pb-expand {
+  0%   { transform: scale(0.5); opacity: 0.9; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
+/* Laser drill: beam charges, flashes, clamps twitch. */
+.md-beam { transform-box: fill-box; transform-origin: top; animation: md-fire 2s ease-in-out infinite; }
+.md-clampL, .md-clampR { animation: md-clamp 2s ease-in-out infinite; }
+@keyframes md-fire {
+  0%, 100% { fill: rgba(0,229,255,0.12); transform: scaleY(0.8); }
+  45%      { fill: rgba(0,229,255,0.5); }
+  55%      { fill: var(--cyan); filter: drop-shadow(0 0 12px var(--cyan)); transform: scaleY(1.05); }
+  70%      { fill: rgba(0,229,255,0.2); }
+}
+@keyframes md-clamp {
+  0%, 100%, 40%, 70% { transform: translateX(0); }
+  55% { transform: translateX(0); }
+}
+
+/* Offline: freeze every mark animation and dim it. */
+.tile.is-offline .tile-mark * {
+  animation: none !important;
+  filter: none !important;
+}
+
+/* ---- admin: appearance + screensaver ---- */
+
+.cfg-appearance { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 10px; }
+.appear-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 14px;
+  border: 1px solid rgba(0,180,255,0.28);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(12,32,51,0.9), rgba(8,20,33,0.92));
+}
+.mark-preview { width: 40px; height: 40px; flex: none; color: var(--cyan); }
+.appear-name { flex: 1; font-family: var(--ui); font-weight: 600; letter-spacing: 0.05em; color: var(--val); }
+.appear-sel {
+  height: 38px; padding: 0 10px; min-width: 0; max-width: 220px;
+  font-family: var(--ui); font-size: 12px; color: var(--val);
+  background: rgba(9,22,36,0.9); border: 1px solid rgba(0,180,255,0.4); border-radius: 8px;
+}
+.appear-sel:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 0 2px rgba(0,229,255,0.18); }
+
+.cfg-saver { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
+.cfg-saver .cfg-field { flex-direction: column; align-items: flex-start; gap: 6px; }
+.cfg-saver select, .cfg-saver input {
+  height: 42px; padding: 0 12px;
+  font-family: var(--ui); font-size: 13px; color: var(--val);
+  background: rgba(9,22,36,0.9); border: 1px solid rgba(0,180,255,0.4); border-radius: 8px;
+}
+.cfg-saver input { font-family: var(--num); width: 120px; }

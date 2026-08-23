@@ -2,8 +2,14 @@
 
 BINARY  := rmm
 PKG     := ./cmd/rmm
-VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-LDFLAGS := -s -w -X main.version=$(VERSION)
+# The semantic version is hand-maintained in cmd/rmm/main.go and is the single
+# source of truth. Bump it there on every change (patch for fixes, minor for
+# features). The build reads it back rather than deriving a git description, so
+# the number shown in the UI matches the code. GITREV is embedded separately for
+# traceability but is not shown in the UI.
+VERSION := $(shell sed -nE 's/^var version = "([^"]+)".*/\1/p' cmd/rmm/main.go)
+GITREV  := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+LDFLAGS := -s -w -X main.version=$(VERSION) -X main.gitRev=$(GITREV)
 
 .PHONY: all build demo test race vet fmt lint pi clean
 

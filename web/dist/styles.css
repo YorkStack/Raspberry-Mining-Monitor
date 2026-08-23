@@ -620,7 +620,29 @@ body::after {
    Reachable from this machine only, so it is free to scroll and to use a
    comfortable touch target size rather than fitting the 600 px kiosk budget. */
 
-.cfg-body { height: auto; min-height: 600px; overflow-y: auto; }
+/* The dashboard locks html/body to exactly 1600x600 with overflow:hidden. On
+   the Pi's fixed 600 px display that would clip everything on this longer page
+   below the fold and make it unreachable. Release the height lock for the
+   config and history pages so the document scrolls normally (touch-drag on the
+   kiosk, wheel in a browser). :has() is supported by the Chromium build on the
+   Pi and by desktop browsers. */
+html:has(> body.cfg-body) {
+  width: auto;
+  height: auto;
+  min-height: 100%;
+  /* Scroll in whichever direction the content needs. On the Pi the viewport is
+     exactly 1600 px wide so only vertical scroll ever appears; in a browser
+     narrower than the content, horizontal scroll becomes available too instead
+     of the content being clipped off the right edge. */
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.cfg-body {
+  width: auto;
+  height: auto;
+  min-height: 100vh;
+  overflow: visible;
+}
 
 .cfg { padding: 14px 24px 32px; max-width: 1600px; }
 
@@ -717,9 +739,64 @@ body::after {
 .cfg-save { border-color: rgba(0, 230, 118, 0.55); color: var(--ok); }
 .cfg-save:hover { border-color: var(--ok); box-shadow: 0 0 14px rgba(0, 230, 118, 0.2); }
 
-.cfg-msg { margin-top: 20px; min-height: 20px; font-size: 13px; color: var(--label); }
-.cfg-msg.is-ok { color: var(--ok); }
-.cfg-msg.is-bad { color: var(--crit); }
+/* Save confirmation: a fixed toast so it is visible no matter where the
+   button that triggered it sits on a long, scrollable page. */
+.cfg-msg {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: 90vw;
+  padding: 12px 22px;
+  font-family: var(--ui);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border-radius: 10px;
+  pointer-events: none;
+  opacity: 0;
+}
+.cfg-msg:empty { display: none; }
+.cfg-msg.is-ok, .cfg-msg.is-bad { animation: toast-pop 0.32s ease-out both; }
+.cfg-msg.is-ok {
+  color: var(--ok);
+  background: linear-gradient(180deg, rgba(9, 44, 28, 0.97), rgba(6, 26, 18, 0.97));
+  border: 1px solid rgba(0, 230, 118, 0.7);
+  box-shadow: 0 0 22px rgba(0, 230, 118, 0.35), inset 0 0 12px rgba(0, 230, 118, 0.12);
+  text-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
+}
+.cfg-msg.is-bad {
+  color: var(--crit);
+  background: linear-gradient(180deg, rgba(52, 12, 12, 0.97), rgba(30, 8, 8, 0.97));
+  border: 1px solid rgba(255, 82, 82, 0.7);
+  box-shadow: 0 0 22px rgba(255, 82, 82, 0.35);
+}
+@keyframes toast-pop {
+  0%   { opacity: 0; transform: translate(-50%, 14px) scale(0.96); }
+  60%  { opacity: 1; transform: translate(-50%, -3px) scale(1.02); }
+  100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+
+/* The clicked save button confirms in place: the whole button turns solid
+   green, the label becomes SAVED with a tick, and it gives one clear pulse. */
+.cfg-btn.is-saved {
+  color: #05230f;
+  font-weight: 800;
+  background: linear-gradient(180deg, #17e57e, #04a352);
+  border-color: #7dffb9;
+  box-shadow: 0 0 18px rgba(0, 230, 118, 0.55);
+  animation: btn-saved 0.5s ease-out;
+}
+@keyframes btn-saved {
+  0%   { transform: scale(1);    box-shadow: 0 0 0 rgba(0, 230, 118, 0); }
+  45%  { transform: scale(1.06); box-shadow: 0 0 26px rgba(0, 230, 118, 0.85); }
+  100% { transform: scale(1);    box-shadow: 0 0 18px rgba(0, 230, 118, 0.55); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cfg-msg.is-ok, .cfg-msg.is-bad { animation: none; opacity: 1; }
+  .cfg-btn.is-saved { animation: none; }
+}
 
 /* Settings link on the dashboard footer. Shown only when the page is being
    viewed on the machine that serves it, because that is the only place the
@@ -732,6 +809,19 @@ body::after {
 }
 .ftr-cfg:hover { color: var(--cyan); border-bottom-color: var(--cyan); }
 .ftr-cfg.is-hidden { display: none; }
+
+/* Build version: small, to the right of the page heading. Overrides the
+   heading's glow/weight so it reads as a quiet caption, not part of the title. */
+.hdr-ver {
+  margin-left: 12px;
+  font-family: var(--num);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: #4d7185;
+  text-shadow: none;
+  vertical-align: baseline;
+}
 
 
 /* ---- animated equalizer in the FLEET TOTAL tile ---- */

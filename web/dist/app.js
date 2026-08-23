@@ -436,3 +436,13 @@ function onActivity() {
 ["mousemove", "mousedown", "touchstart", "keydown", "wheel"].forEach((ev) =>
   window.addEventListener(ev, onActivity, { passive: true })
 );
+
+
+/* ---- build version in the footer ---- */
+fetch("/api/v1/version")
+  .then((r) => r.json())
+  .then((v) => {
+    const node = document.getElementById("app-ver");
+    if (node && v && v.version) node.textContent = "v" + v.version;
+  })
+  .catch(() => {});

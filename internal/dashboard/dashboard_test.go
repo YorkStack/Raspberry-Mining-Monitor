@@ -130,6 +130,19 @@ func TestProbabilityUsesTotalHashrateAndNetworkDifficulty(t *testing.T) {
 	if math.Abs(v.Probability.ShareOfNetwork-1.4728e-8)/1.4728e-8 > 1e-3 {
 		t.Errorf("ShareOfNetwork = %v, want ~1.4728e-8", v.Probability.ShareOfNetwork)
 	}
+	// The "1 in N" odds must correspond to the probability.
+	if o := v.Probability.DayOdds; o <= 0 || math.Abs(1/o-v.Probability.Day)/v.Probability.Day > 1e-6 {
+		t.Errorf("DayOdds %v inconsistent with Day %v", o, v.Probability.Day)
+	}
+	if v.Probability.NextBlock <= 0 || v.Probability.NextBlockOdds <= 0 {
+		t.Errorf("NextBlock odds not populated: p=%v odds=%v", v.Probability.NextBlock, v.Probability.NextBlockOdds)
+	}
+	if v.Probability.CombinedHashrateTHs <= 0 {
+		t.Error("CombinedHashrateTHs not populated")
+	}
+	if v.Probability.MeanSeconds <= 0 {
+		t.Error("MeanSeconds not populated")
+	}
 }
 
 // Without network data there is no difficulty, so there is no probability to
@@ -310,5 +323,23 @@ func TestScreensaverSecondsPassedThrough(t *testing.T) {
 	in.ScreensaverSeconds = 900
 	if v := Build(in, now); v.ScreensaverSeconds != 900 {
 		t.Errorf("ScreensaverSeconds = %d, want 900", v.ScreensaverSeconds)
+	}
+}
+
+// An offline miner's last-known hashrate must not inflate the solo odds.
+func TestOfflineMinerExcludedFromSoloOdds(t *testing.T) {
+	in := reference()
+	in.Miners[1].Source.OK = false // Gamma 602 goes offline
+	v := Build(in, now)
+	if v.Probability == nil {
+		t.Fatal("Probability = nil")
+	}
+	if math.Abs(v.Probability.CombinedHashrateTHs-12.10) > 1e-9 {
+		t.Errorf("CombinedHashrateTHs = %v, want 12.10 (offline Gamma excluded)", v.Probability.CombinedHashrateTHs)
+	}
+	// Fewer active hashes must lower the probability versus the full fleet.
+	full := Build(reference(), now)
+	if !(v.Probability.Year < full.Probability.Year) {
+		t.Error("probability did not fall when a miner went offline")
 	}
 }

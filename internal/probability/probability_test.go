@@ -191,3 +191,67 @@ func TestShareOfNetworkUndefinedWithoutNetworkHashrate(t *testing.T) {
 		t.Error("ShareOfNetwork should report ok=false when the network hashrate is zero")
 	}
 }
+
+// Feature contract tests for the Solo Block Odds display.
+
+func TestProbabilityRisesWithHashrate(t *testing.T) {
+	const d = 1.26e14
+	lo := AtLeastOne(10e12, d, Day)
+	hi := AtLeastOne(20e12, d, Day)
+	if !(hi > lo) {
+		t.Errorf("more hashrate must raise probability: lo=%g hi=%g", lo, hi)
+	}
+}
+
+func TestProbabilityFallsWhenDifficultyRises(t *testing.T) {
+	const h = 13.3e12
+	easy := AtLeastOne(h, 1.0e14, Day)
+	hard := AtLeastOne(h, 2.0e14, Day)
+	if !(hard < easy) {
+		t.Errorf("higher difficulty must lower probability: easy=%g hard=%g", easy, hard)
+	}
+}
+
+func TestLongerWindowIsMoreLikelyThanShorter(t *testing.T) {
+	const h, d = 13.3e12, 1.26e14
+	if !(AtLeastOne(h, d, Month) > AtLeastOne(h, d, Day)) {
+		t.Error("30-day probability must exceed 1-day probability")
+	}
+}
+
+func TestOddsAgainstMatchesProbability(t *testing.T) {
+	const h, d = 13.3e12, 1.26e14
+	p := AtLeastOne(h, d, Day)
+	n := OddsAgainst(p)
+	// "1 in N" means p == 1/N.
+	if math.Abs(1/n-p) > p*1e-9 {
+		t.Errorf("OddsAgainst inconsistent: p=%g n=%g 1/n=%g", p, n, 1/n)
+	}
+}
+
+func TestOddsAgainstGuardsBadInput(t *testing.T) {
+	for _, p := range []float64{0, -0.1, 1.5, math.NaN(), math.Inf(1)} {
+		if got := OddsAgainst(p); got != 0 {
+			t.Errorf("OddsAgainst(%g) = %g, want 0", p, got)
+		}
+	}
+}
+
+func TestExpectedIntervalConsistentWithProbability(t *testing.T) {
+	const h, d = 13.3e12, 1.26e14
+	mean, ok := MeanTimeToBlockSeconds(h, d)
+	if !ok {
+		t.Fatal("mean undefined")
+	}
+	// Over exactly the mean interval, P(>=1) must equal 1 - 1/e.
+	p := AtLeastOne(h, d, mean)
+	if math.Abs(p-(1-1/math.E)) > 1e-9 {
+		t.Errorf("P over the mean interval = %g, want %g", p, 1-1/math.E)
+	}
+}
+
+func TestNextBlockWindowIsTenMinutes(t *testing.T) {
+	if NextBlock != 600.0 {
+		t.Errorf("NextBlock = %v, want 600", NextBlock)
+	}
+}

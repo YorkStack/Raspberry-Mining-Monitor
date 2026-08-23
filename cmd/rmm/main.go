@@ -46,7 +46,7 @@ import (
 // version is the semantic version of the build. It can be overridden at build
 // time with -ldflags "-X main.version=...". Bump it on every change: the patch
 // digit for small fixes, the minor digit for features or notable changes.
-var version = "0.10.0"
+var version = "0.11.0"
 
 // gitRev is embedded at build time with -ldflags "-X main.gitRev=...". It is for
 // log traceability only and is not shown in the UI.

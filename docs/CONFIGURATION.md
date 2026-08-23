@@ -108,13 +108,38 @@ dashboard:
   settings: true              # false disables /settings and /healthz entirely
   settings_path: /var/lib/rmm/thresholds.json
   screensaver_minutes: 15     # 0 disables the burn-in screensaver
+  metrics: true               # expose GET /metrics (Prometheus), LAN-gated
 ```
+
+`metrics: true` serves Prometheus metrics at `/metrics`, gated to the local
+network like the other operator surfaces. Scrape it from Prometheus/Grafana on
+the same LAN; set `metrics: false` to remove the route.
 
 `settings: false` removes the admin surface completely — use it if the service
 is ever reachable from outside the LAN. `settings_path` also determines where
 `miners.json` and `history.gob` live (same directory). See
 [SECURITY.md](SECURITY.md) for why the admin surface must not sit behind a
 reverse proxy.
+
+### alerts
+
+```yaml
+alerts:
+  webhook_url: ""          # opt-in; empty disables all alerts
+  offline_minutes: 10      # alert when a miner is offline this long (0 = off)
+  temp_alerts: true        # alert when ASIC temperature reaches its critical level
+  cooldown_minutes: 30     # minimum gap between repeats of the same alert
+```
+
+Opt-in operator notifications. Nothing runs unless `webhook_url` is set. When it
+is, each alert POSTs a small JSON body (`{miner, kind, level, message, value,
+source}`) to that URL, which works with ntfy or a Slack/Discord webhook wrapper.
+Alerts are edge-triggered with the cooldown, and a condition that clears resets
+so a genuine recurrence is not swallowed. The critical temperature comes from
+each miner's own threshold (see the settings page). The URL is a secret held in
+the config only, never exposed by the API or UI, and delivery is outbound only
+to exactly that URL. For richer alerting, scrape `/metrics` with Prometheus and
+use Alertmanager instead.
 
 ### history
 
@@ -124,7 +149,10 @@ history:
   retention_days: 7
 ```
 
-Rolling fleet totals kept in RAM and persisted to `history.gob`.
+Rolling fleet totals kept in RAM and persisted to `history.gob`. Per-miner
+history (hashrate, power, ASIC temperature) is tracked for up to 16 miners and
+shown on the history page's per-miner selector; a miner tile on the dashboard
+links to its detail charts.
 
 ## Runtime settings (the `/settings` page)
 

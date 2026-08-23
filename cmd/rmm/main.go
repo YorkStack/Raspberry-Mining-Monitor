@@ -46,7 +46,7 @@ import (
 // version is the semantic version of the build. It can be overridden at build
 // time with -ldflags "-X main.version=...". Bump it on every change: the patch
 // digit for small fixes, the minor digit for features or notable changes.
-var version = "0.11.0"
+var version = "0.12.0"
 
 // gitRev is embedded at build time with -ldflags "-X main.gitRev=...". It is for
 // log traceability only and is not shown in the UI.
@@ -260,6 +260,15 @@ func intervals(cfg config.Config) dashboard.Input {
 // history, and persists the rings every 5 minutes plus once on shutdown. It
 // only records while at least one miner is online, so downtime does not draw a
 // misleading flat line at zero.
+// ptrOr returns the pointed-to value, or 0 when the pointer is nil. A miner
+// that does not report power or temperature records 0 for that series.
+func ptrOr(p *float64) float64 {
+	if p == nil {
+		return 0
+	}
+	return *p
+}
+
 func recordHistory(ctx context.Context, hist *history.Store, store *state.Store, log *slog.Logger) {
 	sample := time.NewTicker(10 * time.Second)
 	defer sample.Stop()
@@ -274,9 +283,18 @@ func recordHistory(ctx context.Context, hist *history.Store, store *state.Store,
 			}
 			return
 		case now := <-sample.C:
-			agg := make([]aggregate.MinerInput, 0)
-			for _, m := range store.Miners() {
+			miners := store.Miners()
+			agg := make([]aggregate.MinerInput, 0, len(miners))
+			perMiner := make(map[string]history.MinerSample, len(miners))
+			for _, m := range miners {
 				agg = append(agg, aggregate.MinerInput{Name: m.Name, OK: m.OK, HashrateTHs: m.HashrateTHs, PowerW: m.PowerW})
+				if m.OK {
+					perMiner[m.Name] = history.MinerSample{
+						Hashrate: m.HashrateTHs,
+						Power:    ptrOr(m.PowerW),
+						Temp:     ptrOr(m.ASICTempC),
+					}
+				}
 			}
 			t := aggregate.Combine(agg)
 			if t.MinersOnline == 0 {
@@ -287,6 +305,7 @@ func recordHistory(ctx context.Context, hist *history.Store, store *state.Store,
 				Power:    t.PowerW,
 				Price:    store.Network().PriceEUR,
 			})
+			hist.RecordMiners(now, perMiner)
 		case <-persist.C:
 			if err := hist.Save(); err != nil {
 				log.Warn("could not persist history", "err", err)

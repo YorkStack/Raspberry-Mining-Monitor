@@ -142,11 +142,17 @@ function buildTiles(miners) {
 
   for (let i = 0; i < miners.length; i++) {
     const d = document.createElement("div");
-    d.className = "tile";
+    d.className = "tile tile-link";
     d.id = "m" + i;
+    d.dataset.miner = miners[i].name;
     d.innerHTML = minerTile(i, miners[i].name);
     host.appendChild(d);
   }
+  // Tapping a miner tile opens its detail history (touch-friendly on the Pi).
+  host.onclick = (e) => {
+    const tile = e.target.closest(".tile[data-miner]");
+    if (tile) location.href = "/history?miner=" + encodeURIComponent(tile.dataset.miner);
+  };
   const t = document.createElement("div");
   t.className = "tile tile-total";
   t.id = "mt";

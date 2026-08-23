@@ -1173,3 +1173,20 @@ code { font-family: var(--num); color: #a8d5e5; }
 .rows-odds .odds-n:only-child { color: var(--val); }
 .rows-odds dd .sub { font-family: var(--num); font-size: 11px; color: var(--faint); }
 .rows-odds .odds-int { font-family: var(--num); color: var(--label); cursor: help; }
+
+/* ---- history: miner selector + clickable tiles ---- */
+.range-sel {
+  height: 30px;
+  padding: 0 10px;
+  margin-right: 10px;
+  font-family: var(--ui);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--val);
+  background: linear-gradient(180deg, rgba(18, 41, 61, 0.95), rgba(9, 22, 36, 0.95));
+  border: 1px solid rgba(30, 136, 168, 0.6);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.range-sel:hover { border-color: var(--cyan); }
+.tile-link { cursor: pointer; }

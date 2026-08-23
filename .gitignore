@@ -22,5 +22,13 @@ deploy/deploy.env
 # Local editor / harness config
 .claude/
 
-# Runtime threshold overrides (may be written to cwd during local dev)
+# Runtime state written to cwd during local dev or next to the settings path on
+# the Pi. Never commit these: miners.json holds miner IPs/hostnames, and the
+# others are per-install state, not source.
 thresholds.json
+miners.json
+history.gob
+*.gob
+
+# Local session handoff (names the Pi)
+handoff.md

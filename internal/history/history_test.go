@@ -103,3 +103,68 @@ func TestLoadMissingFileIsNotAnError(t *testing.T) {
 		t.Errorf("missing history file should not error: %v", err)
 	}
 }
+
+func TestRecordMinersAndQuery(t *testing.T) {
+	s := New("")
+	t0 := time.Unix(1_700_000_000, 0)
+	s.RecordMiners(t0, map[string]MinerSample{
+		"NerdOctaxe": {Hashrate: 12.1, Power: 158, Temp: 62},
+		"Gamma 602":  {Hashrate: 1.27, Power: 18, Temp: 55},
+	})
+	pts := s.QueryMiner("NerdOctaxe", "1h")
+	if len(pts) != 1 {
+		t.Fatalf("points = %d, want 1", len(pts))
+	}
+	if pts[0].Hashrate != 12.1 || pts[0].Temp != 62 {
+		t.Errorf("point = %+v", pts[0])
+	}
+	if names := s.MinerNames(); len(names) != 2 || names[0] != "Gamma 602" || names[1] != "NerdOctaxe" {
+		t.Errorf("MinerNames = %v, want sorted [Gamma 602 NerdOctaxe]", names)
+	}
+	if s.QueryMiner("ghost", "1h") != nil {
+		t.Error("unknown miner should return nil")
+	}
+}
+
+func TestPerMinerCadenceIndependentPerMiner(t *testing.T) {
+	s := New("")
+	t0 := time.Unix(1_700_000_000, 0)
+	// Two samples 10s apart land two points in the 1h ring (10s cadence).
+	s.RecordMiners(t0, map[string]MinerSample{"A": {Hashrate: 1}})
+	s.RecordMiners(t0.Add(10*time.Second), map[string]MinerSample{"A": {Hashrate: 2}})
+	// A sample 1s later is below cadence and is dropped.
+	s.RecordMiners(t0.Add(11*time.Second), map[string]MinerSample{"A": {Hashrate: 3}})
+	if got := len(s.QueryMiner("A", "1h")); got != 2 {
+		t.Errorf("points = %d, want 2 (cadence enforced)", got)
+	}
+}
+
+func TestPerMinerCapOnTrackedMiners(t *testing.T) {
+	s := New("")
+	t0 := time.Unix(1_700_000_000, 0)
+	for i := 0; i < maxHistoryMiners+5; i++ {
+		s.RecordMiners(t0, map[string]MinerSample{string(rune('a'+i)): {Hashrate: float64(i)}})
+	}
+	if got := len(s.MinerNames()); got != maxHistoryMiners {
+		t.Errorf("tracked miners = %d, want capped at %d", got, maxHistoryMiners)
+	}
+}
+
+func TestPerMinerSaveLoadRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/history.gob"
+	s := New(path)
+	t0 := time.Unix(1_700_000_000, 0)
+	s.RecordMiners(t0, map[string]MinerSample{"NerdOctaxe": {Hashrate: 12.1, Power: 158, Temp: 62}})
+	if err := s.Save(); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	s2 := New(path)
+	if err := s2.Load(); err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	pts := s2.QueryMiner("NerdOctaxe", "1h")
+	if len(pts) != 1 || pts[0].Hashrate != 12.1 {
+		t.Errorf("restored per-miner points = %+v", pts)
+	}
+}

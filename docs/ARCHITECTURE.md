@@ -79,6 +79,9 @@ Public (any LAN client):
 - `GET /api/v1/stream` — Server-Sent Events, one snapshot per second.
 - `GET /api/v1/history?range=1h|24h|7d` — the rolling fleet totals.
 - `GET /api/v1/version` — the build version, shown in the header.
+- `GET /api/v1/probability?ths=<TH/s>` — solo-block odds for the current or a
+  hypothetical hashrate (the history page's "what if" calculator).
+- `GET /metrics` — Prometheus text (LAN-gated; see SECURITY.md).
 
 Operator only (local network, and only when `dashboard.settings` is on):
 

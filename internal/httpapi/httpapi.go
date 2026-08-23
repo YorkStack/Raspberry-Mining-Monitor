@@ -135,6 +135,7 @@ func NewHandler(o Options) http.Handler {
 	mux.Handle("/api/v1/stream", getOnly(o.handleStream))
 	mux.Handle("/api/v1/history", getOnly(o.handleHistory))
 	mux.Handle("/api/v1/version", getOnly(o.handleVersion))
+	mux.Handle("/api/v1/probability", getOnly(o.handleProbability))
 	mux.Handle("/history", getOnly(o.servePage("history.html")))
 
 	// Operator surfaces. Loopback only, which on the Pi means the kiosk itself.

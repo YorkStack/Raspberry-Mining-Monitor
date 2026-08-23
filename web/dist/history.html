@@ -37,6 +37,27 @@
     <canvas class="chart" id="c-third" width="1560" height="200"></canvas>
   </div>
 
+  <h2 class="cfg-section">SOLO BLOCK ODDS &mdash; DETAIL</h2>
+  <p class="cfg-subnote">Chance of finding &ge;1 block, computed live from the combined active hashrate and the current network difficulty. Every hash is an independent attempt.</p>
+  <div class="odds-grid" id="odds-grid"></div>
+  <dl class="odds-context">
+    <div class="row"><dt>Statistical block interval</dt><dd id="od-interval" title="A statistical average of a memoryless process, not a countdown. A block could be found immediately, or take far longer.">&mdash;</dd></div>
+    <div class="row"><dt>Combined active hashrate</dt><dd id="od-combined">&mdash;</dd></div>
+    <div class="row"><dt>Network hashrate</dt><dd id="od-nethash">&mdash;</dd></div>
+    <div class="row"><dt>Network difficulty</dt><dd id="od-diff">&mdash;</dd></div>
+    <div class="row"><dt>Network data as of</dt><dd id="od-asof">&mdash;</dd></div>
+  </dl>
+
+  <h2 class="cfg-section">WHAT IF?</h2>
+  <p class="cfg-subnote">Try a hypothetical hashrate against the current network. Informational only &mdash; this never changes a miner.</p>
+  <div class="whatif">
+    <label class="whatif-in">Hashrate
+      <input id="wi-ths" type="number" min="0" step="1" inputmode="decimal" placeholder="TH/s">
+      <span>TH/s</span>
+    </label>
+    <div class="whatif-out" id="wi-out">Enter a hashrate to see the odds.</div>
+  </div>
+
   <div class="cfg-msg" id="hist-msg"></div>
 </div>
 <script type="module" src="history.js"></script>

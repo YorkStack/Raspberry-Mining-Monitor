@@ -22,6 +22,8 @@ miners:
     payout_address: bc1qYOUR_GAMMA_ADDRESS
     interval: 2s
     timeout: 2s
+    # Optional: force this miner's pool provider instead of auto-detecting it.
+    # pool_provider: ckpool   # publicpool | ckpool | braiins | generic | auto
 
 # Bitcoin network data. provider: public | core | demo
 # base_url can point at a self-hosted mempool instance or a mirror.
@@ -31,11 +33,24 @@ bitcoin:
   interval: 30s
   timeout: 8s
 
-# Solo pool. provider: publicpool | ckpool | none | demo
-# Note the non-standard port on the hosted Public Pool API.
+# Solo pool statistics. Provider-agnostic: each miner is routed to a provider by
+# its stratum host, or by an explicit override.
+#
+# provider: the default for miners without their own pool_provider override.
+#   auto        detect per miner from the stratum host (recommended for a mixed
+#               fleet); unknown pools fall back to "generic"
+#   publicpool  public-pool.io
+#   ckpool      solo.ckpool.org (and regional mirrors)
+#   braiins     Braiins Pool (needs a token, see below)
+#   generic     derive stats from each miner's own telemetry, no external API
+#   none        no pool panel
+#   demo        simulated
+# base_url applies to Public Pool (ckpool and braiins use their own defaults).
+# token is only for Braiins; it stays in this file and is never sent to the UI.
 pool:
-  provider: publicpool
+  provider: auto
   base_url: https://public-pool.io:40557
+  token: ""
   interval: 60s
   timeout: 8s
 

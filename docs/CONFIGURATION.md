@@ -34,7 +34,8 @@ miners:
 
 `host` is the miner's own web UI address, reachable from the Pi. `type: axeos`
 covers both upstream Bitaxe and NerdQAxe firmware; the collector detects which
-one automatically. `warn_temp_c` / `crit_temp_c` are optional and default to
+one automatically. An optional `pool_provider` (`publicpool` | `ckpool` |
+`braiins` | `generic` | `auto`) overrides pool detection for that one miner. `warn_temp_c` / `crit_temp_c` are optional and default to
 64 / 70 °C. Both AxeOS variants trip their own thermal protection at 70 °C, so
 red sits on that line and amber gives a few degrees of warning first.
 
@@ -54,15 +55,39 @@ see [Optional extensions](#optional-extensions).
 
 ### pool
 
+Pool statistics are provider-agnostic. Each miner is routed to a provider by its
+stratum host (when `provider: auto`) or by an explicit override, and the results
+are merged into one panel. Fields a provider cannot supply show as unavailable
+(an em-dash), never as a fake zero.
+
 ```yaml
 pool:
-  provider: publicpool        # publicpool | ckpool | none | demo
-  base_url: https://public-pool.io:40557   # note the non-standard port
+  provider: auto              # default for miners without their own override
+  base_url: https://public-pool.io:40557   # applies to Public Pool
+  token: ""                   # Braiins API token only; stays out of the UI
   interval: 60s
   timeout: 8s
 ```
 
-`none` disables pool stats (the panel shows em-dashes). `ckpool` is reserved.
+`provider` values:
+
+- `auto` detects the provider per miner from its stratum host, and falls back to
+  `generic` for anything unrecognised. Best for a mixed fleet.
+- `publicpool`, `ckpool`, `braiins` force that provider for all miners without
+  their own override.
+- `generic` derives stats from each miner's own telemetry (hashrate, shares,
+  best share) with no external API. This is also the automatic fallback for an
+  unknown pool or a Braiins miner with no token.
+- `none` hides the pool panel; `demo` simulates it.
+
+Per miner, `pool_provider` overrides the default (see the miners section).
+`base_url` applies to Public Pool; ckpool and Braiins use their own defaults.
+`token` is required only for Braiins; it is read from this file and never sent to
+the admin API or the browser.
+
+Capability discovery means a missing metric is normal: for example ckpool
+reports accepted shares but not rejected ones, so the rejected figure falls back
+to the miners' own counts and is labelled as such.
 
 ### dashboard
 
@@ -128,7 +153,9 @@ Interfaces exist for these but they are not built yet:
 
 - **`bitcoin: core`** — read network data straight from your own Bitcoin Core
   node over RPC instead of mempool.space. Fully local, no third-party API.
-- **`pool: ckpool`** — an adapter for solo.ckpool.org alongside Public Pool.
 - Per-miner history and detail charts, and a Prometheus metrics endpoint.
+
+The pool integration is now provider-agnostic and ships adapters for Public
+Pool, ckpool, Braiins and a generic telemetry fallback (see the pool section).
 
 See the main open-items list for status.

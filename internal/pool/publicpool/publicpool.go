@@ -1,14 +1,11 @@
 // Package publicpool is the read-only adapter for Public Pool
-// (github.com/benjamin-wilson/public-pool), the solo pool selected for the MVP.
+// (github.com/benjamin-wilson/public-pool).
 //
 // Each miner has its own payout address, so the adapter queries
-// /api/client/{address} once per address and aggregates the results into a
-// single snapshot. The combined best difficulty is the maximum across
-// addresses, never a sum.
-//
-// Public Pool does not expose per-worker rejected shares or an assigned
-// difficulty, so Capabilities reports those as unavailable and the dashboard
-// falls back to the miners' own figures.
+// /api/client/{address} once per address and aggregates the results. The best
+// difficulty is the maximum across addresses, never a sum. The set of addresses
+// comes from the pool.Input on every fetch, so the adapter is stateless and the
+// router can hand it a changing subset of miners.
 package publicpool
 
 import (
@@ -28,28 +25,19 @@ import (
 const (
 	defaultBaseURL = "https://public-pool.io:40557"
 	maxBody        = 1 << 20
-	// hsPerThs converts Public Pool's hashRate, which is H/s
-	// (shares * 2^32 / seconds), to TH/s.
+	// hsPerThs converts Public Pool's hashRate (H/s) to TH/s.
 	hsPerThs = 1e12
 )
-
-// Target ties a payout address to the miner it belongs to.
-type Target struct {
-	MinerName string
-	Address   string
-}
 
 // Config configures the adapter.
 type Config struct {
 	BaseURL string
 	Timeout time.Duration
-	Targets []Target
 }
 
 // Adapter is the Public Pool collector.
 type Adapter struct {
 	baseURL string
-	targets []Target
 	http    *http.Client
 }
 
@@ -65,7 +53,6 @@ func New(cfg Config) *Adapter {
 	}
 	return &Adapter{
 		baseURL: base,
-		targets: cfg.Targets,
 		http: &http.Client{
 			Timeout:   timeout,
 			Transport: &http.Transport{MaxIdleConns: 4, IdleConnTimeout: 30 * time.Second},
@@ -74,21 +61,19 @@ func New(cfg Config) *Adapter {
 }
 
 // Name identifies the adapter.
-func (a *Adapter) Name() string { return "publicpool" }
+func (a *Adapter) Name() string { return pool.KeyPublicPool }
 
 // Capabilities reports what Public Pool can actually supply.
 func (a *Adapter) Capabilities() pool.Capabilities {
-	return pool.Capabilities{
-		RejectedShares:   false,
-		PoolDifficulty:   false,
-		ConnectionStatus: false,
-		BestEver:         false,
-	}
+	return pool.Caps(
+		pool.FieldHashrate,
+		pool.FieldBestShare,
+		pool.FieldLastShare,
+		pool.FieldActiveWorkers,
+		pool.FieldBlocksFound,
+	)
 }
 
-// flexFloat accepts a JSON number or a numeric string, because Public Pool
-// returns the top-level bestDifficulty as a number but each worker's
-// bestDifficulty as a string (toFixed(2)).
 type flexFloat struct {
 	val float64
 	set bool
@@ -140,28 +125,27 @@ type poolResp struct {
 }
 
 type addrResult struct {
-	target Target
-	resp   *clientResp
-	err    error
-	// notFound marks an address the pool has not seen yet: not a failure.
+	miner    pool.Miner
+	resp     *clientResp
+	err      error
 	notFound bool
 }
 
-// Fetch queries every configured address concurrently, plus the pool-wide
+// Fetch queries every miner's address concurrently, plus the pool-wide
 // endpoint, and folds the results into one snapshot.
-func (a *Adapter) Fetch(ctx context.Context) (pool.Snapshot, error) {
-	results := make([]addrResult, len(a.targets))
+func (a *Adapter) Fetch(ctx context.Context, in pool.Input) (pool.Snapshot, error) {
+	results := make([]addrResult, len(in.Miners))
 	var wg sync.WaitGroup
-	for i, tgt := range a.targets {
+	for i, m := range in.Miners {
 		wg.Add(1)
-		go func(i int, tgt Target) {
+		go func(i int, m pool.Miner) {
 			defer wg.Done()
-			results[i] = a.fetchAddress(ctx, tgt)
-		}(i, tgt)
+			results[i] = a.fetchAddress(ctx, m)
+		}(i, m)
 	}
 	wg.Wait()
 
-	snap := pool.Snapshot{Provider: "publicpool", Caps: a.Capabilities()}
+	snap := pool.Snapshot{Provider: pool.KeyPublicPool, Caps: a.Capabilities()}
 
 	var (
 		anyOK        bool
@@ -169,6 +153,9 @@ func (a *Adapter) Fetch(ctx context.Context) (pool.Snapshot, error) {
 		bestDiff     float64
 		haveBestDiff bool
 		latestShare  time.Time
+		hashrate     float64
+		haveHashrate bool
+		active       int
 	)
 
 	for _, r := range results {
@@ -177,7 +164,6 @@ func (a *Adapter) Fetch(ctx context.Context) (pool.Snapshot, error) {
 			continue
 		}
 		if r.notFound {
-			// Address awaiting its first share. Known, empty, not a failure.
 			anyOK = true
 			continue
 		}
@@ -191,7 +177,8 @@ func (a *Adapter) Fetch(ctx context.Context) (pool.Snapshot, error) {
 		for _, w := range r.resp.Workers {
 			worker := pool.Worker{
 				Name:      w.Name,
-				MinerName: r.target.MinerName,
+				MinerName: r.miner.Name,
+				Provider:  pool.KeyPublicPool,
 				LastSeen:  w.LastSeen,
 			}
 			if w.BestDifficulty.set {
@@ -201,8 +188,11 @@ func (a *Adapter) Fetch(ctx context.Context) (pool.Snapshot, error) {
 			if w.HashRate != nil {
 				ths := *w.HashRate / hsPerThs
 				worker.HashrateTHs = &ths
+				hashrate += ths
+				haveHashrate = true
 			}
 			snap.Workers = append(snap.Workers, worker)
+			active++
 
 			if !w.LastSeen.IsZero() && w.LastSeen.After(latestShare) {
 				latestShare = w.LastSeen
@@ -211,7 +201,6 @@ func (a *Adapter) Fetch(ctx context.Context) (pool.Snapshot, error) {
 		snap.WorkersCount += len(r.resp.Workers)
 	}
 
-	// Every address failed at the network level: fail so the source goes stale.
 	if !anyOK {
 		if lastErr == nil {
 			lastErr = fmt.Errorf("publicpool: no addresses configured")
@@ -222,11 +211,14 @@ func (a *Adapter) Fetch(ctx context.Context) (pool.Snapshot, error) {
 	if haveBestDiff {
 		snap.BestDifficulty = &bestDiff
 	}
+	if haveHashrate {
+		snap.HashrateTHs = &hashrate
+	}
+	snap.ActiveWorkers = &active
 	if !latestShare.IsZero() {
 		snap.LastShare = &latestShare
 	}
 
-	// Pool-wide stats are best effort.
 	if pr, err := a.fetchPool(ctx); err == nil {
 		snap.PoolMiners = pr.TotalMiners
 		snap.BlocksFound = pr.BlocksFound
@@ -241,22 +233,22 @@ func (a *Adapter) Fetch(ctx context.Context) (pool.Snapshot, error) {
 	return snap, nil
 }
 
-func (a *Adapter) fetchAddress(ctx context.Context, tgt Target) addrResult {
-	status, body, err := a.get(ctx, "/api/client/"+tgt.Address)
+func (a *Adapter) fetchAddress(ctx context.Context, m pool.Miner) addrResult {
+	status, body, err := a.get(ctx, "/api/client/"+m.Address)
 	if err != nil {
-		return addrResult{target: tgt, err: err}
+		return addrResult{miner: m, err: err}
 	}
 	if status == http.StatusNotFound {
-		return addrResult{target: tgt, notFound: true}
+		return addrResult{miner: m, notFound: true}
 	}
 	if status != http.StatusOK {
-		return addrResult{target: tgt, err: fmt.Errorf("publicpool %s: status %d", tgt.MinerName, status)}
+		return addrResult{miner: m, err: fmt.Errorf("publicpool %s: status %d", m.Name, status)}
 	}
 	var cr clientResp
 	if err := json.Unmarshal(body, &cr); err != nil {
-		return addrResult{target: tgt, err: fmt.Errorf("publicpool %s: parse: %w", tgt.MinerName, err)}
+		return addrResult{miner: m, err: fmt.Errorf("publicpool %s: parse: %w", m.Name, err)}
 	}
-	return addrResult{target: tgt, resp: &cr}
+	return addrResult{miner: m, resp: &cr}
 }
 
 func (a *Adapter) fetchPool(ctx context.Context) (poolResp, error) {

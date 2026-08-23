@@ -53,6 +53,10 @@ type Miner struct {
 	// its own, so the pool collector makes one call per address.
 	PayoutAddress string `yaml:"payout_address"`
 
+	// PoolProvider overrides provider detection for this miner:
+	// publicpool | ckpool | braiins | generic | auto (empty = use the global default).
+	PoolProvider string `yaml:"pool_provider"`
+
 	Interval time.Duration `yaml:"interval"`
 	Timeout  time.Duration `yaml:"timeout"`
 
@@ -79,8 +83,14 @@ type Bitcoin struct {
 
 // Pool configures the solo-pool adapter.
 type Pool struct {
-	Provider string        `yaml:"provider"`
-	BaseURL  string        `yaml:"base_url"`
+	// Provider is the default provider for miners without their own override:
+	// publicpool | ckpool | braiins | generic | none | demo | auto.
+	// "auto" detects the provider from each miner's stratum host.
+	Provider string `yaml:"provider"`
+	BaseURL  string `yaml:"base_url"`
+	// Token is the API token for providers that need one (Braiins). It is kept
+	// in config.yaml only and never exposed through the admin API or the UI.
+	Token    string        `yaml:"token"`
 	Interval time.Duration `yaml:"interval"`
 	Timeout  time.Duration `yaml:"timeout"`
 }
@@ -164,7 +174,7 @@ type Config struct {
 
 var (
 	knownMinerTypes    = map[string]bool{"axeos": true, "demo": true}
-	knownPoolProviders = map[string]bool{"publicpool": true, "ckpool": true, "none": true, "demo": true}
+	knownPoolProviders = map[string]bool{"publicpool": true, "ckpool": true, "braiins": true, "generic": true, "auto": true, "none": true, "demo": true}
 	knownBTCProviders  = map[string]bool{"public": true, "core": true, "demo": true}
 )
 

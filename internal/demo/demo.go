@@ -253,16 +253,19 @@ func (p *Pool) Name() string { return "publicpool-demo" }
 // Capabilities mirrors what Public Pool can actually supply, so the demo does
 // not promise metrics the real adapter will not have.
 func (p *Pool) Capabilities() pool.Capabilities {
-	return pool.Capabilities{
-		RejectedShares:   false,
-		PoolDifficulty:   false,
-		ConnectionStatus: false,
-		BestEver:         true,
-	}
+	return pool.Caps(
+		pool.FieldHashrate,
+		pool.FieldBestShare,
+		pool.FieldBestEver,
+		pool.FieldLastShare,
+		pool.FieldActiveWorkers,
+		pool.FieldBlocksFound,
+	)
 }
 
-// Fetch returns the simulated pool-side view.
-func (p *Pool) Fetch(_ context.Context) (pool.Snapshot, error) {
+// Fetch returns the simulated pool-side view. It implements pool.Fetcher; the
+// telemetry is unused because the demo generates its own numbers.
+func (p *Pool) Fetch(_ context.Context, _ map[string]miner.Snapshot) (pool.Snapshot, error) {
 	now := p.clock()
 
 	if p.rnd.Float64() < 0.02 {
@@ -284,11 +287,13 @@ func (p *Pool) Fetch(_ context.Context) (pool.Snapshot, error) {
 	}
 
 	last := now.Add(-time.Duration(p.rnd.Intn(30)) * time.Second)
+	active := len(workers)
 	s := pool.Snapshot{
 		Provider:        "publicpool",
 		Caps:            p.Capabilities(),
 		Workers:         workers,
 		WorkersCount:    len(workers),
+		ActiveWorkers:   &active,
 		BestDifficulty:  f(p.bestDiff),
 		BestEver:        f(p.bestDiff),
 		PoolHashrateTHs: f(118_000 + p.rnd.Float64()*4000),

@@ -127,3 +127,39 @@ func TestMinersApiIsTrustedOnly(t *testing.T) {
 		t.Errorf("status = %d, want 404 from a public IP", rec.Code)
 	}
 }
+
+// The per-miner monitoring token must never reach the browser, and editing a
+// miner through the admin UI (which never receives the token) must not wipe it.
+func TestMinerTokenNeverExposedButPreservedOnPut(t *testing.T) {
+	h, mc, _ := minersHandler(t)
+	const token = "supersecrettoken1234567890ABCD"
+	if err := mc.Replace([]minercfg.Spec{{
+		Name: "Mac M2", Type: "axeos", Host: "192.168.1.60",
+		PayoutAddress: "bc1qmac", Token: token,
+	}}); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, local(httptest.NewRequest(http.MethodGet, "/api/v1/miners", nil)))
+	if strings.Contains(rec.Body.String(), token) || strings.Contains(rec.Body.String(), "token") {
+		t.Fatalf("GET /api/v1/miners leaked token material: %s", rec.Body.String())
+	}
+
+	body := `{"miners":[{"name":"Mac M2","type":"axeos","host":"192.168.1.99","payoutAddress":"bc1qmac","intervalSeconds":5}]}`
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, local(httptest.NewRequest(http.MethodPut, "/api/v1/miners", strings.NewReader(body))))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("PUT status = %d: %s", rec.Code, rec.Body.String())
+	}
+	got := mc.Miners()
+	if len(got) != 1 {
+		t.Fatalf("miners = %d, want 1", len(got))
+	}
+	if got[0].Host != "192.168.1.99" {
+		t.Errorf("host = %q, want 192.168.1.99", got[0].Host)
+	}
+	if got[0].Token != token {
+		t.Errorf("token not preserved on PUT: got %q", got[0].Token)
+	}
+}

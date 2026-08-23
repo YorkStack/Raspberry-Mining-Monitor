@@ -580,12 +580,24 @@ func (o Options) handleMiners(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid body: "+err.Error(), http.StatusBadRequest)
 			return
 		}
+		// Preserve fields the admin UI never receives, keyed by miner name, so
+		// editing a miner does not wipe its monitoring token or pool override.
+		// The token in particular is never sent to the browser (see apiMiner).
+		existing := make(map[string]minercfg.Spec)
+		for _, m := range o.MinerCfg.Miners() {
+			existing[m.Name] = m
+		}
 		specs := make([]minercfg.Spec, 0, len(body.Miners))
 		for _, m := range body.Miners {
-			specs = append(specs, minercfg.Spec{
+			spec := minercfg.Spec{
 				Name: m.Name, Type: m.Type, Host: m.Host, PayoutAddress: m.PayoutAddress,
 				Interval: time.Duration(m.IntervalSeconds) * time.Second,
-			})
+			}
+			if prev, ok := existing[m.Name]; ok {
+				spec.Token = prev.Token
+				spec.PoolProvider = prev.PoolProvider
+			}
+			specs = append(specs, spec)
 		}
 		if err := o.MinerCfg.Replace(specs); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)

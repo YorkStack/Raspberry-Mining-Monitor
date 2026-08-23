@@ -189,11 +189,22 @@ func (o Options) handleHistory(w http.ResponseWriter, r *http.Request) {
 	if rng == "" {
 		rng = "1h"
 	}
-	var pts []history.Point
-	if o.History != nil {
-		pts = o.History.Query(rng)
+	if o.History == nil {
+		_ = json.NewEncoder(w).Encode(map[string]any{"range": rng, "points": []history.Point{}})
+		return
 	}
-	_ = json.NewEncoder(w).Encode(map[string]any{"range": rng, "points": pts})
+	// A miner query returns that miner's per-series history; otherwise the fleet
+	// totals, plus the list of miners that have history for the UI selector.
+	if name := r.URL.Query().Get("miner"); name != "" {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"range": rng, "miner": name,
+			"points": o.History.QueryMiner(name, rng), "miners": o.History.MinerNames(),
+		})
+		return
+	}
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"range": rng, "points": o.History.Query(rng), "miners": o.History.MinerNames(),
+	})
 }
 
 func (o Options) handleSnapshot(w http.ResponseWriter, _ *http.Request) {

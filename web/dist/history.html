@@ -12,6 +12,9 @@
   <header class="hdr cfg-hdr">
     <div class="hdr-title">FLEET HISTORY</div>
     <div class="hdr-right">
+      <select class="range-sel" id="miner-sel" title="Choose fleet totals or a single miner">
+        <option value="">FLEET TOTAL</option>
+      </select>
       <div class="range-tabs" id="range-tabs">
         <button class="range-tab is-on" data-range="1h">1 H</button>
         <button class="range-tab" data-range="24h">24 H</button>
@@ -22,16 +25,16 @@
   </header>
 
   <div class="chart-block">
-    <div class="chart-hd">FLEET HASHRATE <span class="chart-unit">TH/s</span> <span class="chart-last" id="last-hash"></span></div>
+    <div class="chart-hd" id="hd-hash">HASHRATE <span class="chart-unit">TH/s</span> <span class="chart-last" id="last-hash"></span></div>
     <canvas class="chart" id="c-hash" width="1560" height="200"></canvas>
   </div>
   <div class="chart-block">
-    <div class="chart-hd">FLEET POWER <span class="chart-unit">W</span> <span class="chart-last" id="last-power"></span></div>
+    <div class="chart-hd" id="hd-power">POWER <span class="chart-unit">W</span> <span class="chart-last" id="last-power"></span></div>
     <canvas class="chart" id="c-power" width="1560" height="200"></canvas>
   </div>
   <div class="chart-block">
-    <div class="chart-hd">BTC PRICE <span class="chart-unit">EUR</span> <span class="chart-last" id="last-price"></span></div>
-    <canvas class="chart" id="c-price" width="1560" height="200"></canvas>
+    <div class="chart-hd" id="hd-third">BTC PRICE <span class="chart-unit" id="unit-third">EUR</span> <span class="chart-last" id="last-third"></span></div>
+    <canvas class="chart" id="c-third" width="1560" height="200"></canvas>
   </div>
 
   <div class="cfg-msg" id="hist-msg"></div>

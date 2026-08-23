@@ -10,26 +10,30 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"hash/fnv"
 	"log/slog"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
+	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/aggregate"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/bitcoin"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/bitcoin/mempool"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/collect"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/config"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/dashboard"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/demo"
+	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/history"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/httpapi"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/miner"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/miner/axeos"
+	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/minercfg"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/pool"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/pool/publicpool"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/settings"
@@ -69,17 +73,38 @@ func run() error {
 		return err
 	}
 
-	names := make([]string, 0, len(cfg.Miners))
-	for _, m := range cfg.Miners {
-		names = append(names, m.Name)
-	}
-	store := state.New(names)
+	store := state.New(nil)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	var wg sync.WaitGroup
-	startCollectors(ctx, &wg, cfg, store, log)
+	// Editable miner/provider config, seeded from the loaded config on first
+	// run, then owned by the admin UI.
+	minersPath := filepath.Join(filepath.Dir(cfg.Dashboard.SettingsPath), "miners.json")
+	minerStore := minercfg.New(minersPath, minercfg.Providers{
+		BitcoinBaseURL: cfg.Bitcoin.BaseURL, PoolBaseURL: cfg.Pool.BaseURL,
+	})
+	if err := minerStore.SeedIfEmpty(seedSpecs(cfg), minercfg.Providers{
+		BitcoinBaseURL: cfg.Bitcoin.BaseURL, PoolBaseURL: cfg.Pool.BaseURL,
+	}); err != nil {
+		log.Warn("could not seed miner config", "err", err)
+	}
+
+	manager := collect.NewManager(ctx, collect.ManagerOptions{
+		Store:        store,
+		Log:          log,
+		Factories:    factories(cfg, time.Now),
+		PoolInterval: cfg.Pool.Interval, PoolTimeout: cfg.Pool.Timeout,
+		NetInterval: cfg.Bitcoin.Interval, NetTimeout: cfg.Bitcoin.Timeout,
+	})
+	manager.Reload(minerStore.Miners(), minerStore.Providers())
+
+	// Rolling history for the charts. A load failure is non-fatal.
+	hist := history.New(filepath.Join(filepath.Dir(cfg.Dashboard.SettingsPath), "history.gob"))
+	if err := hist.Load(); err != nil {
+		log.Warn("could not load history, starting fresh", "err", err)
+	}
+	go recordHistory(ctx, hist, store, log)
 
 	addr := *addrFlag
 	if addr == "" {
@@ -100,8 +125,12 @@ func run() error {
 		Version:            version,
 		Settings:           bands,
 		SettingsEnabled:    cfg.Dashboard.Settings,
-		MinerNames:         names,
 		ScreensaverSeconds: cfg.Dashboard.ScreensaverMinutes * 60,
+		MinerCfg:           minerStore,
+		OnConfigChange: func() {
+			manager.Reload(minerStore.Miners(), minerStore.Providers())
+		},
+		History: hist,
 	})
 
 	srv := &http.Server{
@@ -142,7 +171,7 @@ func run() error {
 	select {
 	case err := <-serveErr:
 		stop()
-		wg.Wait()
+		manager.Wait()
 		return err
 	case <-ctx.Done():
 		log.Info("shutting down")
@@ -153,7 +182,7 @@ func run() error {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Warn("graceful shutdown failed", "err", err)
 	}
-	wg.Wait()
+	manager.Wait()
 	return nil
 }
 
@@ -211,104 +240,138 @@ func intervals(cfg config.Config) dashboard.Input {
 	return in
 }
 
-func startCollectors(ctx context.Context, wg *sync.WaitGroup, cfg config.Config, store *state.Store, log *slog.Logger) {
-	clock := time.Now
+// recordHistory samples the current fleet totals every 10 s into the rolling
+// history, and persists the rings every 5 minutes plus once on shutdown. It
+// only records while at least one miner is online, so downtime does not draw a
+// misleading flat line at zero.
+func recordHistory(ctx context.Context, hist *history.Store, store *state.Store, log *slog.Logger) {
+	sample := time.NewTicker(10 * time.Second)
+	defer sample.Stop()
+	persist := time.NewTicker(5 * time.Minute)
+	defer persist.Stop()
 
-	for i, m := range cfg.Miners {
-		var c miner.Collector
-		switch m.Type {
-		case "demo":
-			c = demo.NewMiner(demo.MinerConfig{
-				Name:          m.Name,
-				Model:         m.Model,
-				Firmware:      "demo",
-				NominalTHs:    m.NominalTHs,
-				NominalW:      m.NominalW,
-				NominalTempC:  m.NominalTempC,
-				Fans:          m.Fans,
-				DropoutChance: 0.004,
-			}, int64(i+1), clock)
-		case "axeos":
-			c = axeos.New(axeos.Config{
-				Name:    m.Name,
-				BaseURL: minerBaseURL(m.Host),
-				Timeout: m.Timeout,
-			})
-		default:
-			log.Warn("unknown miner type, reporting it as offline",
-				"miner", m.Name, "type", m.Type)
-			store.FailMiner(m.Name, time.Now(), "unknown miner type "+m.Type)
-			continue
-		}
-
-		wg.Add(1)
-		go func(c miner.Collector, interval, timeout time.Duration) {
-			defer wg.Done()
-			collect.RunMiner(ctx, c, store, interval, timeout, log)
-		}(c, m.Interval, m.Timeout)
-	}
-
-	var poolAdapter pool.Adapter
-	switch cfg.Pool.Provider {
-	case "demo":
-		names := make([]string, 0, len(cfg.Miners))
-		for _, m := range cfg.Miners {
-			names = append(names, m.Name)
-		}
-		poolAdapter = demo.NewPool(names, 42, clock)
-	case "publicpool":
-		targets := make([]publicpool.Target, 0, len(cfg.Miners))
-		for _, m := range cfg.Miners {
-			if m.PayoutAddress == "" {
-				log.Warn("miner has no payout_address, excluded from pool stats", "miner", m.Name)
+	for {
+		select {
+		case <-ctx.Done():
+			if err := hist.Save(); err != nil {
+				log.Warn("could not save history on shutdown", "err", err)
+			}
+			return
+		case now := <-sample.C:
+			agg := make([]aggregate.MinerInput, 0)
+			for _, m := range store.Miners() {
+				agg = append(agg, aggregate.MinerInput{Name: m.Name, OK: m.OK, HashrateTHs: m.HashrateTHs, PowerW: m.PowerW})
+			}
+			t := aggregate.Combine(agg)
+			if t.MinersOnline == 0 {
 				continue
 			}
-			targets = append(targets, publicpool.Target{MinerName: m.Name, Address: m.PayoutAddress})
-		}
-		if len(targets) == 0 {
-			log.Warn("publicpool selected but no miner has a payout_address; pool panel will be empty")
-			store.FailPool(time.Now(), "no payout addresses configured")
-		} else {
-			poolAdapter = publicpool.New(publicpool.Config{
-				BaseURL: cfg.Pool.BaseURL,
-				Timeout: cfg.Pool.Timeout,
-				Targets: targets,
+			hist.Record(now, history.Sample{
+				Hashrate: t.HashrateTHs,
+				Power:    t.PowerW,
+				Price:    store.Network().PriceEUR,
 			})
+		case <-persist.C:
+			if err := hist.Save(); err != nil {
+				log.Warn("could not persist history", "err", err)
+			}
 		}
-	case "none":
-		// Pool panel intentionally disabled.
-	default:
-		log.Warn("unknown pool provider, pool panel will be empty", "provider", cfg.Pool.Provider)
-		store.FailPool(time.Now(), "unknown pool provider "+cfg.Pool.Provider)
 	}
-	if poolAdapter != nil {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			collect.RunPool(ctx, poolAdapter, store, cfg.Pool.Interval, cfg.Pool.Timeout, log)
-		}()
-	}
+}
 
-	var btc bitcoin.Provider
-	switch cfg.Bitcoin.Provider {
-	case "demo":
-		btc = demo.NewBitcoin(7, clock)
-	case "public":
-		btc = mempool.New(mempool.Config{
-			BaseURL: cfg.Bitcoin.BaseURL,
-			Timeout: cfg.Bitcoin.Timeout,
+// seedSpecs converts the loaded config's miners into editable specs for the
+// first-run seed of the miner config store.
+func seedSpecs(cfg config.Config) []minercfg.Spec {
+	out := make([]minercfg.Spec, 0, len(cfg.Miners))
+	for _, m := range cfg.Miners {
+		out = append(out, minercfg.Spec{
+			Name:          m.Name,
+			Type:          m.Type,
+			Host:          m.Host,
+			PayoutAddress: m.PayoutAddress,
+			Interval:      m.Interval,
+			Timeout:       m.Timeout,
+			NominalTHs:    m.NominalTHs,
+			NominalW:      m.NominalW,
+			NominalTempC:  m.NominalTempC,
+			Model:         m.Model,
+			Fans:          m.Fans,
 		})
-	default:
-		log.Warn("bitcoin provider not implemented, network panel will be empty",
-			"provider", cfg.Bitcoin.Provider)
-		store.FailNetwork(time.Now(), "unknown bitcoin provider "+cfg.Bitcoin.Provider)
 	}
-	if btc != nil {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			collect.RunNetwork(ctx, btc, store, cfg.Bitcoin.Interval, cfg.Bitcoin.Timeout, log)
-		}()
+	return out
+}
+
+// seedFromName gives each demo miner a stable seed so its simulated data does
+// not jump around when the miner list is reloaded.
+func seedFromName(name string) int64 {
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(name))
+	return int64(h.Sum64() & 0x7fffffffffffffff)
+}
+
+// factories builds the concrete collectors the manager needs. The provider
+// TYPE (demo vs real) stays from the loaded config; the manager supplies the
+// live miner list and provider URLs.
+func factories(cfg config.Config, clock func() time.Time) collect.Factories {
+	return collect.Factories{
+		Miner: func(spec minercfg.Spec) miner.Collector {
+			switch spec.Type {
+			case "demo":
+				return demo.NewMiner(demo.MinerConfig{
+					Name:          spec.Name,
+					Model:         spec.Model,
+					Firmware:      "demo",
+					NominalTHs:    spec.NominalTHs,
+					NominalW:      spec.NominalW,
+					NominalTempC:  spec.NominalTempC,
+					Fans:          spec.Fans,
+					DropoutChance: 0.004,
+				}, seedFromName(spec.Name), clock)
+			default: // axeos
+				return axeos.New(axeos.Config{
+					Name:    spec.Name,
+					BaseURL: minerBaseURL(spec.Host),
+					Timeout: spec.Timeout,
+				})
+			}
+		},
+		Pool: func(specs []minercfg.Spec, prov minercfg.Providers) pool.Adapter {
+			switch cfg.Pool.Provider {
+			case "demo":
+				names := make([]string, len(specs))
+				for i, m := range specs {
+					names[i] = m.Name
+				}
+				return demo.NewPool(names, 42, clock)
+			case "publicpool":
+				targets := make([]publicpool.Target, 0, len(specs))
+				for _, m := range specs {
+					if m.PayoutAddress != "" {
+						targets = append(targets, publicpool.Target{MinerName: m.Name, Address: m.PayoutAddress})
+					}
+				}
+				if len(targets) == 0 {
+					return nil
+				}
+				return publicpool.New(publicpool.Config{
+					BaseURL: prov.PoolBaseURL,
+					Timeout: cfg.Pool.Timeout,
+					Targets: targets,
+				})
+			default:
+				return nil
+			}
+		},
+		Bitcoin: func(prov minercfg.Providers) bitcoin.Provider {
+			switch cfg.Bitcoin.Provider {
+			case "demo":
+				return demo.NewBitcoin(7, clock)
+			case "public":
+				return mempool.New(mempool.Config{BaseURL: prov.BitcoinBaseURL, Timeout: cfg.Bitcoin.Timeout})
+			default:
+				return nil
+			}
+		},
 	}
 }
 

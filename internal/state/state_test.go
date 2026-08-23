@@ -201,3 +201,35 @@ func TestPlaceholderCarriesTheConfiguredName(t *testing.T) {
 		t.Errorf("Source = %+v, want the zero value", got.Source)
 	}
 }
+
+func TestReconcileAddsAndRemovesMiners(t *testing.T) {
+	s := New([]string{"NerdOctaxe", "Gamma 602"})
+	s.SetMiner("NerdOctaxe", snap("NerdOctaxe", 12.10))
+
+	// Drop Gamma, add MacBook. Order should follow the new list.
+	s.Reconcile([]string{"NerdOctaxe", "MacBook M2"})
+
+	got := s.Miners()
+	if len(got) != 2 {
+		t.Fatalf("got %d miners, want 2", len(got))
+	}
+	if got[0].Name != "NerdOctaxe" || got[1].Name != "MacBook M2" {
+		t.Errorf("order = %q, %q; want NerdOctaxe, MacBook M2", got[0].Name, got[1].Name)
+	}
+	// The kept miner retains its last data.
+	if got[0].HashrateTHs != 12.10 {
+		t.Errorf("kept miner lost its data: %v", got[0].HashrateTHs)
+	}
+	// The new miner is a fresh placeholder.
+	if got[1].HasData() {
+		t.Error("new miner should start as a placeholder")
+	}
+}
+
+func TestReconcileToEmpty(t *testing.T) {
+	s := New([]string{"A"})
+	s.Reconcile(nil)
+	if len(s.Miners()) != 0 {
+		t.Errorf("want no miners after reconcile to empty")
+	}
+}

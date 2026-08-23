@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/dashboard"
+	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/history"
+	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/minercfg"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/settings"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/state"
 )
@@ -52,10 +54,27 @@ type Options struct {
 
 	// ScreensaverSeconds is passed through to the UI for burn-in protection.
 	ScreensaverSeconds int
+
+	// MinerCfg is the editable miner/provider config. When set, the admin API
+	// can read and replace it, and knowsMiner consults it for the live set.
+	MinerCfg *minercfg.Store
+	// OnConfigChange is invoked after the miner/provider config is replaced, so
+	// the collectors can be reloaded.
+	OnConfigChange func()
+
+	// History serves the rolling fleet-total record for the charts.
+	History *history.Store
+}
+
+func (o Options) minerNames() []string {
+	if o.MinerCfg != nil {
+		return o.MinerCfg.Names()
+	}
+	return o.MinerNames
 }
 
 func (o Options) knowsMiner(name string) bool {
-	for _, n := range o.MinerNames {
+	for _, n := range o.minerNames() {
 		if n == name {
 			return true
 		}
@@ -101,12 +120,16 @@ func NewHandler(o Options) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/api/v1/snapshot", getOnly(o.handleSnapshot))
 	mux.Handle("/api/v1/stream", getOnly(o.handleStream))
+	mux.Handle("/api/v1/history", getOnly(o.handleHistory))
+	mux.Handle("/history", getOnly(o.servePage("history.html")))
 
 	// Operator surfaces. Loopback only, which on the Pi means the kiosk itself.
 	mux.Handle("/healthz", o.trustedOnly(getOnly(o.handleHealth)))
 	mux.Handle("/settings", o.operatorOnly(getOnly(o.handleSettingsPage)))
 	mux.Handle("/api/v1/settings", o.operatorOnly(getOnly(o.handleSettingsGet)))
 	mux.Handle("/api/v1/settings/", o.operatorOnly(http.HandlerFunc(o.handleSettingsMutate)))
+	mux.Handle("/api/v1/miners", o.minerCfgOnly(http.HandlerFunc(o.handleMiners)))
+	mux.Handle("/api/v1/providers", o.minerCfgOnly(http.HandlerFunc(o.handleProviders)))
 
 	mux.Handle("/", getOnly(noStore(http.FileServer(http.FS(o.Static)).ServeHTTP)))
 
@@ -146,6 +169,20 @@ func getOnly(next http.HandlerFunc) http.Handler {
 		}
 		next(w, r)
 	})
+}
+
+func (o Options) handleHistory(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	rng := r.URL.Query().Get("range")
+	if rng == "" {
+		rng = "1h"
+	}
+	var pts []history.Point
+	if o.History != nil {
+		pts = o.History.Query(rng)
+	}
+	_ = json.NewEncoder(w).Encode(map[string]any{"range": rng, "points": pts})
 }
 
 func (o Options) handleSnapshot(w http.ResponseWriter, _ *http.Request) {
@@ -303,6 +340,32 @@ func (o Options) operatorOnly(next http.Handler) http.Handler {
 	}))
 }
 
+// servePage serves one embedded HTML file at a clean path.
+func (o Options) servePage(name string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		f, err := o.Static.Open(name)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		defer f.Close()
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache, must-revalidate")
+		buf := make([]byte, 64*1024)
+		for {
+			n, rerr := f.Read(buf)
+			if n > 0 {
+				if _, werr := w.Write(buf[:n]); werr != nil {
+					return
+				}
+			}
+			if rerr != nil {
+				return
+			}
+		}
+	}
+}
+
 func (o Options) handleSettingsPage(w http.ResponseWriter, r *http.Request) {
 	f, err := o.Static.Open("settings.html")
 	if err != nil {
@@ -341,7 +404,7 @@ type settingsResponse struct {
 func (o Options) handleSettingsGet(w http.ResponseWriter, _ *http.Request) {
 	resp := settingsResponse{
 		Default:   o.Settings.Default(),
-		Miners:    o.MinerNames,
+		Miners:    o.minerNames(),
 		Overrides: o.Settings.Overrides(),
 		Disabled:  o.Settings.Disabled(),
 	}
@@ -433,4 +496,103 @@ func (o Options) handleToggleEnabled(w http.ResponseWriter, r *http.Request, enc
 		return
 	}
 	o.handleSettingsGet(w, r)
+}
+
+// minerCfgOnly gates the miner/provider config API: trusted network and a
+// config store present.
+func (o Options) minerCfgOnly(next http.Handler) http.Handler {
+	return o.trustedOnly(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if o.MinerCfg == nil {
+			http.NotFound(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	}))
+}
+
+type apiMiner struct {
+	Name            string `json:"name"`
+	Type            string `json:"type"`
+	Host            string `json:"host"`
+	PayoutAddress   string `json:"payoutAddress"`
+	IntervalSeconds int    `json:"intervalSeconds"`
+}
+
+type minersResponse struct {
+	Miners    []apiMiner         `json:"miners"`
+	Providers minercfg.Providers `json:"providers"`
+}
+
+func (o Options) writeMiners(w http.ResponseWriter) {
+	specs := o.MinerCfg.Miners()
+	out := make([]apiMiner, 0, len(specs))
+	for _, m := range specs {
+		out = append(out, apiMiner{
+			Name: m.Name, Type: m.Type, Host: m.Host, PayoutAddress: m.PayoutAddress,
+			IntervalSeconds: int(m.Interval / time.Second),
+		})
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	_ = json.NewEncoder(w).Encode(minersResponse{Miners: out, Providers: o.MinerCfg.Providers()})
+}
+
+// handleMiners serves GET (list) and PUT (replace) of the miner list.
+func (o Options) handleMiners(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		o.writeMiners(w)
+	case http.MethodPut:
+		var body struct {
+			Miners []apiMiner `json:"miners"`
+		}
+		dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64*1024))
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&body); err != nil {
+			http.Error(w, "invalid body: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		specs := make([]minercfg.Spec, 0, len(body.Miners))
+		for _, m := range body.Miners {
+			specs = append(specs, minercfg.Spec{
+				Name: m.Name, Type: m.Type, Host: m.Host, PayoutAddress: m.PayoutAddress,
+				Interval: time.Duration(m.IntervalSeconds) * time.Second,
+			})
+		}
+		if err := o.MinerCfg.Replace(specs); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if o.OnConfigChange != nil {
+			o.OnConfigChange()
+		}
+		o.writeMiners(w)
+	default:
+		w.Header().Set("Allow", "GET, PUT")
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// handleProviders serves PUT of the provider URLs.
+func (o Options) handleProviders(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		w.Header().Set("Allow", "PUT")
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var p minercfg.Providers
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&p); err != nil {
+		http.Error(w, "invalid body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := o.MinerCfg.SetProviders(p); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if o.OnConfigChange != nil {
+		o.OnConfigChange()
+	}
+	o.writeMiners(w)
 }

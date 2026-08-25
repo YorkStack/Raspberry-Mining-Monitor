@@ -39,8 +39,15 @@ authority, who makes the legal and tax determinations.
 1. **Foundation (this phase):** SQLite store + migrations, versioned miner
    inventory, document management (hashed, versioned, validated), append-only
    audit log with a hash chain.
-2. Telemetry persistence + hourly/daily aggregates + network snapshots +
-   immutable contemporaneous expected-value snapshots.
+2. **Telemetry persistence + aggregates + network snapshots + immutable
+   expected-value (done):** `telemetry` (raw + hourly aggregate with
+   completeness/gaps + retention prune), `network` (snapshots with raw response
+   and SHA-256, append-only), `expected` (contemporaneous expected value,
+   integer satoshi/cents, immutable and formula-versioned). The `ingest` command
+   records a monitor snapshot into all three:
+   `rmm-evidence ingest --from http://127.0.0.1:8080/api/v1/snapshot`.
+   Daily network snapshots and their expected value are frozen: the first
+   observation of the day wins and is never recalculated.
 3. Watch-only reward detection + EUR valuation policy + configuration history.
 4. Energy measurement + cost records.
 5. Reporting-period close + CSV exports + evidence/final manifests + integrity.

@@ -32,3 +32,10 @@ history.gob
 
 # Local session handoff (names the Pi)
 handoff.md
+
+# Evidence subsystem: local data (DB, documents), config, binaries
+mining-evidence/
+/data/
+evidence.yaml
+/rmm-evidence
+/rmm-evidence-linux-arm64

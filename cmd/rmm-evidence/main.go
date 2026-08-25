@@ -22,7 +22,7 @@ import (
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/evidence/store"
 )
 
-var version = "0.4.0"
+var version = "0.5.0"
 
 const disclaimer = "Technical factual documentation only. This report does not " +
 	"determine the legal or tax classification of the mining activity."
@@ -99,6 +99,14 @@ func run(args []string) error {
 		return costAdd(fs.Args()[1:], db, log, *actor)
 	case "cost-summary":
 		return costSummary(fs.Args()[1:], db, log)
+	case "period-validate":
+		return periodValidate(fs.Args()[1:], db, log, cfg.DataDirectory)
+	case "period-close":
+		return periodClose(fs.Args()[1:], db, log, cfg.DataDirectory, *actor)
+	case "period-revise":
+		return periodRevise(fs.Args()[1:], db, log, cfg.DataDirectory, *actor)
+	case "verify":
+		return verifyPackage(fs.Args()[1:])
 
 	case "audit-verify":
 		ok, brokenID, err := log.Verify()
@@ -222,6 +230,10 @@ Commands:
   policy-set     set the EUR valuation policy for a tax year (--year)
   cost-add       record a cost (--date --description --category --gross-cents)
   cost-summary   preliminary factual cost summary for a period (--period)
+  period-validate  list pre-close warnings for a period (--period)
+  period-close     close a period and write the evidence package (--period [--acknowledge])
+  period-revise    create a revision of a closed period (--period --reason)
+  verify           verify an evidence package against its manifest (--dir)
   audit-verify   verify the audit-log hash chain
   version        print the version
 

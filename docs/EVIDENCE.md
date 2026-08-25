@@ -48,7 +48,17 @@ authority, who makes the legal and tax determinations.
    `rmm-evidence ingest --from http://127.0.0.1:8080/api/v1/snapshot`.
    Daily network snapshots and their expected value are frozen: the first
    observation of the day wins and is never recalculated.
-3. Watch-only reward detection + EUR valuation policy + configuration history.
+3. **Watch-only rewards + EUR valuation + configuration history (done):**
+   `configlog` (append-only effective config; a change closes the previous and
+   inserts a new one), `reward` (watch-only addresses; reward events with all
+   timestamps, source classification, raw response + SHA-256, idempotent per
+   txid/vout; confirmation tracking; reorg preserves the original and adds a
+   status event; never stores keys/seeds), `valuation` (versioned per-year
+   policy; EUR value in integer cents; primary→fallback with the reason
+   recorded; manual correction inserts a new row preserving the original). CLI:
+   `watch-add`, `watch-list`, `policy-set`. Live blockchain/price adapters are a
+   thin follow-on; the domain logic is provider-agnostic and tested with
+   injected data.
 4. Energy measurement + cost records.
 5. Reporting-period close + CSV exports + evidence/final manifests + integrity.
 6. PDF/A report + digital signing + printing + backup + annual package.

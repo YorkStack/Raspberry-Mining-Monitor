@@ -66,7 +66,16 @@ authority, who makes the legal and tax determinations.
    cents; no automatic deduction/depreciation/VAT determination; adviser
    adjustments are separate records preserving the original; preliminary
    per-category summaries labelled as such). CLI: `cost-add`, `cost-summary`.
-5. Reporting-period close + CSV exports + evidence/final manifests + integrity.
+5. **Reporting-period close + CSV exports + evidence manifest + integrity
+   (done):** `export` (one deterministic CSV per dataset — UTF-8, table-order
+   columns, integer base units — plus `evidence-manifest.json` hashing every
+   file and an evidence-bundle hash; `VerifyEvidencePackage` fails on any byte
+   change) and `report` (pre-close validation warnings; `Close` refuses a
+   period with warnings unless acknowledged and refuses to overwrite a closed
+   original; `Revise` creates `MINING-YYYY-MM-REVISION-NNN` referencing the
+   original, which stays intact). CLI: `period-validate`, `period-close`,
+   `period-revise`, `verify`. Report ids: `MINING-2026-08-ORIGINAL` /
+   `-REVISION-001`. The final manifest with the PDF hash and signing is phase 6.
 6. PDF/A report + digital signing + printing + backup + annual package.
 7. UI section "Tax & Evidence" + full operator documentation.
 

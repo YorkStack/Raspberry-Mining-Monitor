@@ -22,7 +22,7 @@ import (
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/evidence/store"
 )
 
-var version = "0.1.0"
+var version = "0.2.0"
 
 const disclaimer = "Technical factual documentation only. This report does not " +
 	"determine the legal or tax classification of the mining activity."
@@ -85,6 +85,9 @@ func run(args []string) error {
 
 	case "doc-add":
 		return docAdd(fs.Args()[1:], document.New(db.SQL(), log, cfg.DataDirectory), *actor)
+
+	case "ingest":
+		return ingest(fs.Args()[1:], db, loc)
 
 	case "audit-verify":
 		ok, brokenID, err := log.Verify()
@@ -203,6 +206,7 @@ Commands:
   miner-add      add a miner to the versioned inventory (--id required)
   miner-list     list current miner versions
   doc-add        store a document with a content hash (--file required)
+  ingest         record a monitor snapshot: telemetry + daily network snapshot + expected value
   audit-verify   verify the audit-log hash chain
   version        print the version
 

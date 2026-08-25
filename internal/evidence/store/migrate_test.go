@@ -20,9 +20,10 @@ func TestMigrateAppliesFoundationAndIsIdempotent(t *testing.T) {
 		t.Fatalf("Migrate: %v", err)
 	}
 	v, err := db.SchemaVersion()
-	if err != nil || v != 1 {
-		t.Fatalf("SchemaVersion = %d, %v; want 1", v, err)
+	if err != nil || v < 1 {
+		t.Fatalf("SchemaVersion = %d, %v; want >= 1", v, err)
 	}
+	firstVersion := v
 
 	// Tables exist.
 	for _, table := range []string{"miners", "miner_versions", "evidence_documents", "audit_log"} {
@@ -44,8 +45,8 @@ func TestMigrateAppliesFoundationAndIsIdempotent(t *testing.T) {
 	if err := db.SQL().QueryRow("SELECT COUNT(*) FROM miners").Scan(&n); err != nil || n != 1 {
 		t.Errorf("miners count = %d, %v; want 1 (data preserved across re-migrate)", n, err)
 	}
-	if v, _ := db.SchemaVersion(); v != 1 {
-		t.Errorf("version drifted to %d after no-op migrate", v)
+	if v, _ := db.SchemaVersion(); v != firstVersion {
+		t.Errorf("version drifted to %d after no-op migrate (was %d)", v, firstVersion)
 	}
 }
 

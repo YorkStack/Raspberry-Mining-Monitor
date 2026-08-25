@@ -59,7 +59,13 @@ authority, who makes the legal and tax determinations.
    `watch-add`, `watch-list`, `policy-set`. Live blockchain/price adapters are a
    thin follow-on; the domain logic is provider-agnostic and tested with
    injected data.
-4. Energy measurement + cost records.
+4. **Energy measurement + cost records (done):** `energy` (measurements keep
+   physically measured and estimated consumption separate; an estimate must
+   state its method and author; gaps are recorded via completeness, never
+   interpolated; GRID/SOLAR/MIXED classification) and `cost` (integer euro
+   cents; no automatic deduction/depreciation/VAT determination; adviser
+   adjustments are separate records preserving the original; preliminary
+   per-category summaries labelled as such). CLI: `cost-add`, `cost-summary`.
 5. Reporting-period close + CSV exports + evidence/final manifests + integrity.
 6. PDF/A report + digital signing + printing + backup + annual package.
 7. UI section "Tax & Evidence" + full operator documentation.

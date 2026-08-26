@@ -39,3 +39,7 @@ mining-evidence/
 evidence.yaml
 /rmm-evidence
 /rmm-evidence-linux-arm64
+
+# Evidence signing key (never commit)
+keys/
+*.key

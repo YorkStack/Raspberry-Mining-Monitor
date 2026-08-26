@@ -22,7 +22,7 @@ import (
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/evidence/store"
 )
 
-var version = "0.6.0"
+var version = "0.7.0"
 
 const disclaimer = "Technical factual documentation only. This report does not " +
 	"determine the legal or tax classification of the mining activity."
@@ -108,9 +108,11 @@ func run(args []string) error {
 	case "verify":
 		return verifyPackage(fs.Args()[1:])
 	case "finalize":
-		return finalize(fs.Args()[1:], db, cfg.DataDirectory, time.Now())
+		return finalize(fs.Args()[1:], db, log, cfg.DataDirectory, time.Now())
 	case "verify-final":
 		return verifyFinal(fs.Args()[1:], db)
+	case "print":
+		return printReport(fs.Args()[1:], db)
 
 	case "audit-verify":
 		ok, brokenID, err := log.Verify()
@@ -240,6 +242,7 @@ Commands:
   verify           verify an evidence package against its manifest (--dir)
   finalize         build + sign the final manifest for a report (--period [--backup DIR])
   verify-final     verify a signed final manifest (--dir)
+  print            print/show the authoritative PDF after finalize (--dir [--cups NAME])
   audit-verify   verify the audit-log hash chain
   version        print the version
 

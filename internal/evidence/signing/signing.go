@@ -49,6 +49,9 @@ func (k *Key) KeyID() string { return deriveKeyID(k.pub) }
 // PublicBase64 returns the base64 public key.
 func (k *Key) PublicBase64() string { return base64.StdEncoding.EncodeToString(k.pub) }
 
+// Public returns the raw ed25519 public key, for verifying signatures.
+func (k *Key) Public() ed25519.PublicKey { return k.pub }
+
 // SavePrivate writes the private key to a file with restrictive permissions.
 func (k *Key) SavePrivate(path string) error {
 	b := base64.StdEncoding.EncodeToString(k.priv)

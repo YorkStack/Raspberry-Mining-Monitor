@@ -95,7 +95,23 @@ authority, who makes the legal and tax determinations.
      The gated `print` command prints (or points to) the authoritative PDF only
      after the final manifest verifies and a PDF hash is recorded; there is no
      automatic printing, and a tampered PDF is refused.
-7. Annual package + UI section "Tax & Evidence" + full operator documentation.
+7. **Annual package + "Tax & Evidence" view + operator documentation (done):**
+   - `annual` (`internal/evidence/annual`) rolls a tax year's monthly evidence
+     packages into one signed, self-contained annual package: it copies each
+     closed month's latest revision, re-verifies every copy against its own
+     manifest and recorded evidence-bundle hash, records a factual year-filtered
+     summary (rewards, valuations, costs, measured vs estimated energy — amounts
+     only, never a tax result), and signs `annual-manifest.json` with the same
+     Ed25519 key. CLI: `annual --year YYYY [--backup DIR]`, `verify-annual`.
+   - `serve` (`internal/evidence/serve`) is a read-only "Tax & Evidence" status
+     server in the evidence binary — a JSON endpoint plus a self-contained page
+     (no external assets) showing the audit-chain state, reports, annual
+     packages, miners and watched addresses, with the disclaimer. It mutates
+     nothing. The monitor stays untouched and keeps zero SQLite/evidence deps.
+     CLI: `serve [--addr 127.0.0.1:8090]`.
+   - Operator documentation: `docs/EVIDENCE-OPERATIONS.md` (install, daily
+     ingest, monthly close, finalize, annual package, serve, backup/restore,
+     key management, the legal boundary, troubleshooting).
 
 ## What the foundation provides
 

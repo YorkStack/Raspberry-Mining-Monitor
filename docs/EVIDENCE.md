@@ -76,8 +76,26 @@ authority, who makes the legal and tax determinations.
    original, which stays intact). CLI: `period-validate`, `period-close`,
    `period-revise`, `verify`. Report ids: `MINING-2026-08-ORIGINAL` /
    `-REVISION-001`. The final manifest with the PDF hash and signing is phase 6.
-6. PDF/A report + digital signing + printing + backup + annual package.
-7. UI section "Tax & Evidence" + full operator documentation.
+6. **Digital signing + stage-2 final manifest + backup + PDF report (done):**
+   - **6a (done):** `signing` (dedicated Ed25519 key in a 0600 file, kept for
+     verification after rotation), `finalmanifest` (stage-2 manifest hashing the
+     export files and the PDF, signed detached; the final PDF hash lives in the
+     manifest, never inside the PDF, to avoid a circular reference), `backup`
+     (byte-verified copy of the package with a recorded run). CLI: `finalize`,
+     `verify-final`.
+   - **6b (done):** `pdf` renders the self-contained A4 report — cover with the
+     full evidence-bundle hash and a QR code, per-page footer (report id, period,
+     revision, page x of {nb}, short hash), the "technical factual documentation
+     only" disclaimer on the cover and a closing page, and one section per
+     dataset (miners, rewards, valuations, costs by category, measured vs
+     estimated energy, data gaps and corrections). `pdf/pdfa` validates PDF/A-2b
+     with veraPDF when present and reports "not validated" (never a false claim)
+     when it is absent; the verdict is recorded in the manifest and audit log.
+     `finalize` now generates the PDF into `summary/report.pdf` before signing.
+     The gated `print` command prints (or points to) the authoritative PDF only
+     after the final manifest verifies and a PDF hash is recorded; there is no
+     automatic printing, and a tampered PDF is refused.
+7. Annual package + UI section "Tax & Evidence" + full operator documentation.
 
 ## What the foundation provides
 

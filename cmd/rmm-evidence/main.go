@@ -22,7 +22,7 @@ import (
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/evidence/store"
 )
 
-var version = "0.7.0"
+var version = "0.8.0"
 
 const disclaimer = "Technical factual documentation only. This report does not " +
 	"determine the legal or tax classification of the mining activity."
@@ -113,6 +113,12 @@ func run(args []string) error {
 		return verifyFinal(fs.Args()[1:], db)
 	case "print":
 		return printReport(fs.Args()[1:], db)
+	case "annual":
+		return annualClose(fs.Args()[1:], db, log, cfg.DataDirectory, time.Now())
+	case "verify-annual":
+		return verifyAnnual(fs.Args()[1:], db)
+	case "serve":
+		return serveStatus(fs.Args()[1:], db)
 
 	case "audit-verify":
 		ok, brokenID, err := log.Verify()
@@ -243,6 +249,9 @@ Commands:
   finalize         build + sign the final manifest for a report (--period [--backup DIR])
   verify-final     verify a signed final manifest (--dir)
   print            print/show the authoritative PDF after finalize (--dir [--cups NAME])
+  annual           roll a tax year's monthly packages into a signed annual package (--year [--backup DIR])
+  verify-annual    verify a signed annual package (--dir)
+  serve            read-only "Tax & Evidence" status server (--addr 127.0.0.1:8090)
   audit-verify   verify the audit-log hash chain
   version        print the version
 

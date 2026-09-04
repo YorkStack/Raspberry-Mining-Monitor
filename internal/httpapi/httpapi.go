@@ -128,6 +128,11 @@ func (o Options) view() dashboard.View {
 	return dashboard.Build(in, o.now())
 }
 
+// View returns the current dashboard document. It lets other components (such
+// as the Grafana remote_write push) read exactly what the API and /metrics
+// serve, so every surface describes the same fleet.
+func (o Options) View() dashboard.View { return o.view() }
+
 // NewHandler wires the read-only routes.
 func NewHandler(o Options) http.Handler {
 	mux := http.NewServeMux()

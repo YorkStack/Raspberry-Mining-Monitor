@@ -182,6 +182,22 @@ type History struct {
 	RetentionDays int    `yaml:"retention_days"`
 }
 
+// Grafana configures optional push of the fleet metrics to a
+// Prometheus-compatible remote_write endpoint, such as Grafana Cloud. It is off
+// unless enabled with a URL. This lets the monitor forward metrics outbound only
+// so the miners and the monitor are never exposed to the internet. The token is
+// a secret held in this file (or in token_file) only; it is never exposed
+// through the API or the UI.
+type Grafana struct {
+	Enabled   bool          `yaml:"enabled"`
+	URL       string        `yaml:"url"`
+	User      string        `yaml:"user"`
+	Token     string        `yaml:"token"`
+	TokenFile string        `yaml:"token_file"`
+	Interval  time.Duration `yaml:"interval"`
+	Timeout   time.Duration `yaml:"timeout"`
+}
+
 // Config is the whole file.
 type Config struct {
 	Miners    []Miner   `yaml:"miners"`
@@ -190,6 +206,7 @@ type Config struct {
 	Dashboard Dashboard `yaml:"dashboard"`
 	Alerts    Alerts    `yaml:"alerts"`
 	History   History   `yaml:"history"`
+	Grafana   Grafana   `yaml:"grafana"`
 
 	// Demo is set by the --demo flag, never by the file.
 	Demo bool `yaml:"-"`
@@ -276,6 +293,15 @@ func (c *Config) applyDefaults() {
 		c.History.RetentionDays = 7
 	}
 
+	if c.Grafana.Enabled {
+		if c.Grafana.Interval == 0 {
+			c.Grafana.Interval = 30 * time.Second
+		}
+		if c.Grafana.Timeout == 0 {
+			c.Grafana.Timeout = 10 * time.Second
+		}
+	}
+
 	// Alerts are opt-in: nothing runs without a webhook URL. When one is set but
 	// no conditions were chosen, enable sensible defaults so it is useful at once.
 	if c.Alerts.WebhookURL != "" {
@@ -359,6 +385,18 @@ func (c Config) Validate() error {
 
 	if c.Dashboard.Port < 1 || c.Dashboard.Port > 65535 {
 		return fmt.Errorf("config: dashboard port %d is out of range", c.Dashboard.Port)
+	}
+
+	if c.Grafana.Enabled {
+		if c.Grafana.URL == "" {
+			return errors.New("config: grafana.enabled but grafana.url is empty")
+		}
+		if c.Grafana.User == "" {
+			return errors.New("config: grafana.enabled but grafana.user is empty")
+		}
+		if c.Grafana.Token == "" && c.Grafana.TokenFile == "" {
+			return errors.New("config: grafana.enabled but neither grafana.token nor grafana.token_file is set")
+		}
 	}
 
 	return nil

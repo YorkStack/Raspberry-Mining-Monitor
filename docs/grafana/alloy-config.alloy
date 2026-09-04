@@ -1,0 +1,26 @@
+// Optional Grafana Alloy configuration — an ALTERNATIVE to the monitor's built-in
+// push. Use this only if you would rather run a separate collector than let rmm
+// push directly. It scrapes the monitor's local /metrics endpoint and forwards
+// the metrics to Grafana Cloud via remote_write. Nothing is exposed inbound.
+//
+// Fill in your instance id and token, then run Alloy on the same host as rmm.
+
+prometheus.scrape "rmm" {
+  targets    = [{ __address__ = "127.0.0.1:8080" }]
+  metrics_path = "/metrics"
+  scrape_interval = "30s"
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = "https://prometheus-prod-65-prod-eu-west-2.grafana.net/api/prom/push"
+
+    basic_auth {
+      username = "3561754"
+      // Paste your Grafana Cloud access-policy token here, or better, load it
+      // from a file/env var so it stays out of version control.
+      password = sys.env("GRAFANA_CLOUD_TOKEN")
+    }
+  }
+}

@@ -101,3 +101,17 @@ alerts:
 history:
   enabled: true
   retention_days: 7
+
+# Optional: push the fleet metrics to a Prometheus remote_write endpoint such as
+# Grafana Cloud, so you can watch the fleet from anywhere. Outbound only: the
+# miners and this monitor are never exposed. Off unless enabled. The token is a
+# secret; keep it in token_file with 0600 permissions rather than inline. See
+# docs/GRAFANA.md for the full walkthrough and a dashboard to import.
+grafana:
+  enabled: false
+  url: ""                          # e.g. https://prometheus-prod-65-prod-eu-west-2.grafana.net/api/prom/push
+  user: ""                         # Grafana Cloud instance / username (a number)
+  token_file: /etc/rmm/grafana.token   # file containing only the API token
+  # token: ""                      # alternative to token_file (less safe)
+  interval: 30s
+  timeout: 10s

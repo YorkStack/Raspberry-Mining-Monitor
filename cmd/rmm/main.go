@@ -39,6 +39,7 @@ import (
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/pool/braiins"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/pool/ckpool"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/pool/publicpool"
+	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/push"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/settings"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/internal/state"
 	"github.com/YorkStack/Raspberry-Mining-Monitor/web"
@@ -47,7 +48,7 @@ import (
 // version is the semantic version of the build. It can be overridden at build
 // time with -ldflags "-X main.version=...". Bump it on every change: the patch
 // digit for small fixes, the minor digit for features or notable changes.
-var version = "0.14.0"
+var version = "0.15.0"
 
 // gitRev is embedded at build time with -ldflags "-X main.gitRev=...". It is for
 // log traceability only and is not shown in the UI.
@@ -137,7 +138,7 @@ func run() error {
 	// Opt-in operator alerts (miner offline / over-temperature) to a webhook.
 	go runAlerts(ctx, cfg.Alerts, store, bands, log)
 
-	handler := httpapi.NewHandler(httpapi.Options{
+	opts := httpapi.Options{
 		Store:              store,
 		Intervals:          intervals(cfg),
 		Static:             web.Assets(),
@@ -151,7 +152,17 @@ func run() error {
 			manager.Reload(minerStore.Miners(), minerStore.Providers())
 		},
 		History: hist,
-	})
+	}
+	handler := httpapi.NewHandler(opts)
+
+	// Optional outbound push of the fleet metrics to a Prometheus remote_write
+	// endpoint (e.g. Grafana Cloud). Outbound only: the miners and this monitor
+	// are never exposed. Reuses the exact view the API and /metrics serve.
+	if cfg.Grafana.Enabled {
+		if err := startGrafanaPush(ctx, cfg.Grafana, opts.View, version, log); err != nil {
+			return err
+		}
+	}
 
 	srv := &http.Server{
 		Addr:              addr,
@@ -204,6 +215,31 @@ func run() error {
 		log.Warn("graceful shutdown failed", "err", err)
 	}
 	manager.Wait()
+	return nil
+}
+
+// startGrafanaPush resolves the token (inline or from token_file) and starts
+// the remote_write loop. A missing token file is a hard error, since the
+// operator explicitly enabled the push.
+func startGrafanaPush(ctx context.Context, g config.Grafana, view func() dashboard.View, version string, log *slog.Logger) error {
+	token := g.Token
+	if g.TokenFile != "" {
+		b, err := os.ReadFile(g.TokenFile)
+		if err != nil {
+			return fmt.Errorf("grafana token_file: %w", err)
+		}
+		token = strings.TrimSpace(string(b))
+	}
+	pusher := push.New(push.Config{
+		URL:      g.URL,
+		User:     g.User,
+		Token:    token,
+		Interval: g.Interval,
+		Timeout:  g.Timeout,
+		Version:  version,
+	}, log)
+	go push.Run(ctx, pusher, view)
+	log.Info("grafana metrics push enabled", "url", g.URL, "interval", g.Interval)
 	return nil
 }
 
